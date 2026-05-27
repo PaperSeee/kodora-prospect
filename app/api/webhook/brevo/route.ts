@@ -10,15 +10,28 @@ export async function POST(req: NextRequest) {
     const list = Array.isArray(events) ? events : [events]
 
     for (const event of list) {
-      if (event.event !== "opened" && event.event !== "clicked") continue
-
       const toEmail = event.email
       if (!toEmail) continue
 
-      await prisma.prospect.updateMany({
-        where: { email: toEmail, emailOuvert: false },
-        data: { emailOuvert: true, emailOuvertAt: new Date() },
-      })
+      // Tracking ouverture
+      if (event.event === "opened" || event.event === "clicked") {
+        await prisma.prospect.updateMany({
+          where: { email: toEmail, emailOuvert: false },
+          data: { emailOuvert: true, emailOuvertAt: new Date() },
+        })
+      }
+
+      // STOP / désabonnement — bloquer toute relance future
+      if (
+        event.event === "unsubscribed" ||
+        event.event === "hard_bounce" ||
+        event.event === "complaint"
+      ) {
+        await prisma.prospect.updateMany({
+          where: { email: toEmail },
+          data: { statut: "desabonne" },
+        })
+      }
     }
 
     return NextResponse.json({ ok: true })
