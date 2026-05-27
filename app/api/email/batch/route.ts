@@ -46,6 +46,7 @@ Règles :
 - Mentionner naturellement le problème précis du site
 - Finir par la signature : "Ilias — Kodora\\n+32 451 05 33 70\\nhttps://www.kodora.eu" puis "Répondez STOP pour ne plus recevoir nos messages"
 - NE PAS mentionner de tarif
+- Si aucun problème réel n'est détecté, réponds UNIQUEMENT {"objet": "", "corps": ""}
 
 Réponds UNIQUEMENT en JSON avec ce format exact :
 {"objet": "...", "corps": "..."}`,
@@ -57,13 +58,16 @@ Réponds UNIQUEMENT en JSON avec ce format exact :
         const parsed = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] ?? "{}")
         objet = parsed.objet ?? ""
         corps = parsed.corps ?? ""
+        if (!objet || !corps) continue
       } catch {
         const tmpl = staticEmailTemplate(prospect.nom, prospect.secteur, flags, prospect.avis)
+        if (!tmpl) continue
         objet = tmpl.objet
         corps = tmpl.corps
       }
     } else {
       const tmpl = staticEmailTemplate(prospect.nom, prospect.secteur, flags, prospect.avis)
+      if (!tmpl) continue
       objet = tmpl.objet
       corps = tmpl.corps
     }

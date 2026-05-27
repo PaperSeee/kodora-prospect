@@ -42,6 +42,7 @@ Règles :
 - Mentionner naturellement le problème précis du site
 - Finir par la signature : "Ilias — Kodora\\n+32 451 05 33 70\\nhttps://www.kodora.eu" puis "Répondez STOP pour ne plus recevoir nos messages"
 - NE PAS mentionner de tarif
+- Si aucun problème réel n'est détecté, réponds UNIQUEMENT {"objet": "", "corps": ""}
 
 Réponds UNIQUEMENT en JSON avec ce format exact :
 {"objet": "...", "corps": "..."}`,
@@ -53,14 +54,17 @@ Réponds UNIQUEMENT en JSON avec ce format exact :
       const parsed = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] ?? "{}")
       objet = parsed.objet ?? ""
       corps = parsed.corps ?? ""
+      if (!objet || !corps) return NextResponse.json({ error: "Aucun problème détecté — email non pertinent" }, { status: 422 })
     } catch (err) {
       console.error("[email] Anthropic error, falling back to template:", err)
       const tmpl = staticEmailTemplate(prospect.nom, prospect.secteur, flags, prospect.avis)
+      if (!tmpl) return NextResponse.json({ error: "Aucun problème détecté — email non pertinent" }, { status: 422 })
       objet = tmpl.objet
       corps = tmpl.corps
     }
   } else {
     const tmpl = staticEmailTemplate(prospect.nom, prospect.secteur, flags, prospect.avis)
+    if (!tmpl) return NextResponse.json({ error: "Aucun problème détecté — email non pertinent" }, { status: 422 })
     objet = tmpl.objet
     corps = tmpl.corps
   }

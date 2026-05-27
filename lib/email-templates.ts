@@ -5,19 +5,21 @@ export function staticEmailTemplate(
   secteur: string,
   flags: DiagnosticFlag[],
   avis?: number | null
-): { objet: string; corps: string } {
+): { objet: string; corps: string } | null {
   const has = (f: string) => flags.some((fl) => fl === f || fl.startsWith(f))
   const avisText = avis && avis > 0 ? ` alors que vous avez ${avis} avis en ligne` : ""
 
-  let probleme = "votre présence en ligne mérite d'être renforcée"
+  let probleme: string | null = null
   if (has("AUCUN_SITE")) probleme = "vous n'avez pas encore de site web"
   else if (has("SITE_INACCESSIBLE") || has("SITE_HS_"))
     probleme = `votre site web est actuellement inaccessible${avisText}`
   else if (has("PAS_MOBILE"))
     probleme = `votre site s'affiche mal sur mobile${avisText}`
   else if (has("SITE_DATE_")) probleme = `votre site semble dater de plusieurs années${avisText}`
-  else if (has("PAS_HTTPS")) probleme = "votre site n'est pas sécurisé (pas de HTTPS)"
   else if (has("SITE_LENT")) probleme = "votre site est très lent à charger"
+
+  // Aucun problème détecté — pas d'angle d'attaque, on n'envoie pas
+  if (!probleme) return null
 
   const objet = `Votre présence en ligne — ${nom}`
   const corps = `Bonjour,
