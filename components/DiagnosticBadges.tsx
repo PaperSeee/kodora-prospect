@@ -12,7 +12,7 @@ const FLAG_LABELS: Record<string, { label: string; color: string }> = {
 export function DiagnosticBadges({ flags }: { flags: DiagnosticFlag[] }) {
   return (
     <div className="flex flex-wrap gap-1">
-      {flags.filter((f) => f !== "PAS_HTTPS").map((flag) => {
+      {flags.filter((f) => (f as string) !== "PAS_HTTPS").map((flag) => {
         let label = flag as string
         let color = "bg-zinc-600"
 
