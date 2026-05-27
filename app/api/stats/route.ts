@@ -20,7 +20,7 @@ export async function GET() {
   return NextResponse.json({
     total,
     parStatut: statutMap,
-    parSecteur: parSecteur.map((s) => ({ secteur: s.secteur, count: s._count })),
+    parSecteur: parSecteur.map((s: { secteur: string; _count: number }) => ({ secteur: s.secteur, count: s._count })),
     avgScore: Math.round(scores._avg.score ?? 0),
     maxScore: scores._max.score ?? 0,
     chauds: await prisma.prospect.count({ where: { score: { gte: 50 } } }),
