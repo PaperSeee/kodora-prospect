@@ -63,7 +63,8 @@ export async function POST(req: NextRequest) {
           send({ type: "error", nom: prospect.nom, error: errMsg })
         }
 
-        await new Promise((r) => setTimeout(r, 200))
+        // Délai aléatoire 3-8s pour éviter les filtres anti-spam (envoi trop rapide)
+        await new Promise((r) => setTimeout(r, 3000 + Math.random() * 5000))
       } catch (err) {
         const errMsg = `${prospect.nom}: ${err}`
         errors.push(errMsg)

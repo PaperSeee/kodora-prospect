@@ -36,12 +36,14 @@ export async function POST(req: NextRequest) {
 Problèmes détectés sur leur site : ${problemes}
 Informations additionnelles : ${avisInfo}
 
-Règles :
-- Ton professionnel mais humain, adapté au secteur (${prospect.secteur})
-- Court : objet + 4 à 6 lignes de corps maximum
-- Mentionner naturellement le problème précis du site
-- Finir par la signature : "Ilias — Kodora\\n+32 451 05 33 70\\nhttps://www.kodora.eu" puis "Répondez STOP pour ne plus recevoir nos messages"
-- NE PAS mentionner de tarif
+Règles STRICTES (délivrabilité email) :
+- Ton personnel, direct, comme un vrai email humain — pas un mail commercial
+- Court : objet + 4 à 5 lignes maximum, pas plus
+- L'objet doit être neutre et naturel (ex: "Une question rapide", "J'ai regardé votre site") — JAMAIS "offre", "promotion", "gratuit", "prix", "devis"
+- Corps : commencer par "Bonjour," sans le nom — mentionner le problème précis observé
+- NE PAS utiliser les mots : offre, promotion, gratuit, profitez, exclusif, urgent, limité, euros, prix, tarif, remise
+- NE PAS mettre de majuscules abusives, pas de points d'exclamation
+- Terminer par la signature : "Ilias\\nKodora — kodora.eu\\n+32 451 05 33 70\\n\\nPour ne plus recevoir mes messages, répondez STOP."
 - Si aucun problème réel n'est détecté, réponds UNIQUEMENT {"objet": "", "corps": ""}
 
 Réponds UNIQUEMENT en JSON avec ce format exact :
