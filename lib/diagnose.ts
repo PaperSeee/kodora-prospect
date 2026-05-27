@@ -2,7 +2,6 @@ export type DiagnosticFlag =
   | "AUCUN_SITE"
   | "SITE_INACCESSIBLE"
   | `SITE_HS_${number}`
-  | "PAS_HTTPS"
   | "SITE_LENT"
   | "PAS_MOBILE"
   | `SITE_DATE_${number}`
@@ -18,9 +17,6 @@ export async function diagnoseSite(siteWeb?: string | null): Promise<DiagnosticR
 
   const url = siteWeb.startsWith("http") ? siteWeb : `https://${siteWeb}`
   const flags: DiagnosticFlag[] = []
-
-  // HTTPS check
-  if (!url.startsWith("https://")) flags.push("PAS_HTTPS")
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 10000)
