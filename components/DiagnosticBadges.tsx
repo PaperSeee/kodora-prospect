@@ -5,7 +5,6 @@ import type { DiagnosticFlag } from "@/lib/diagnose"
 const FLAG_LABELS: Record<string, { label: string; color: string }> = {
   AUCUN_SITE: { label: "Aucun site", color: "bg-red-600" },
   SITE_INACCESSIBLE: { label: "Site inaccessible", color: "bg-red-500" },
-  PAS_HTTPS: { label: "Pas HTTPS", color: "bg-yellow-600" },
   SITE_LENT: { label: "Site lent", color: "bg-yellow-500" },
   PAS_MOBILE: { label: "Pas mobile", color: "bg-orange-500" },
 }
@@ -13,7 +12,7 @@ const FLAG_LABELS: Record<string, { label: string; color: string }> = {
 export function DiagnosticBadges({ flags }: { flags: DiagnosticFlag[] }) {
   return (
     <div className="flex flex-wrap gap-1">
-      {flags.map((flag) => {
+      {flags.filter((f) => f !== "PAS_HTTPS").map((flag) => {
         let label = flag as string
         let color = "bg-zinc-600"
 
