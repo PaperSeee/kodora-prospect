@@ -7,6 +7,9 @@ export const maxDuration = 300
 const DELAI_JOURS = 3
 
 export async function POST() {
+  // RELANCE EN PAUSE — réactiver quand le stock de nouveaux prospects est épuisé
+  return NextResponse.json({ paused: true, message: "Relance en pause" })
+
   const apiKey = process.env.BREVO_API_KEY
   if (!apiKey) return NextResponse.json({ error: "BREVO_API_KEY manquante" }, { status: 400 })
 
