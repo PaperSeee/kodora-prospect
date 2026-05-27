@@ -1,11 +1,9 @@
 import { PrismaClient } from "@prisma/client"
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3"
 import { PrismaLibSql } from "@prisma/adapter-libsql"
-import path from "path"
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 
-function createPrismaClient() {
+function createPrismaClient(): PrismaClient {
   const tursoUrl = process.env.TURSO_DATABASE_URL
   const tursoToken = process.env.TURSO_AUTH_TOKEN
 
@@ -14,6 +12,11 @@ function createPrismaClient() {
     return new PrismaClient({ adapter } as never)
   }
 
+  // Dev local uniquement — better-sqlite3 non disponible sur Vercel
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { PrismaBetterSqlite3 } = require("@prisma/adapter-better-sqlite3")
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const path = require("path")
   const dbUrl = process.env.DATABASE_URL ?? "file:./kodora.db"
   const dbPath = dbUrl.replace(/^file:/, "")
   const absolutePath = path.isAbsolute(dbPath) ? dbPath : path.resolve(process.cwd(), dbPath)
