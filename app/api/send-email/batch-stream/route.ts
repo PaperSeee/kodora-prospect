@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
+export const maxDuration = 300
+
 export async function POST(req: NextRequest) {
   const apiKey = process.env.BREVO_API_KEY
   if (!apiKey) return NextResponse.json({ error: "BREVO_API_KEY manquante" }, { status: 400 })

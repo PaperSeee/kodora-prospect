@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { relanceEmailTemplate } from "@/lib/email-templates"
 
+export const maxDuration = 300
+
 const DELAI_JOURS = 3
 
 export async function POST() {
