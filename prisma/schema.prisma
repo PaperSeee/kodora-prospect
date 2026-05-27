@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Prospect {
+  id          Int      @id @default(autoincrement())
+  nom         String
+  secteur     String
+  ville       String   @default("Bruxelles")
+  telephone   String?
+  email       String?
+  siteWeb     String?
+  note        Float?
+  avis        Int?
+  statut      String   @default("a_contacter")
+  score       Int      @default(0)
+  angle       String?
+  goldStar    Boolean  @default(false)
+
+  // Diagnostic stocké en JSON sérialisé
+  diagnostic  String?
+
+  // Email généré par IA
+  emailObjet  String?
+  emailCorps  String?
+
+  // Notes perso CRM
+  notes       String?
+
+  // Tracking ouvertures et relances
+  emailOuvert   Boolean   @default(false)
+  emailOuvertAt DateTime?
+  relancee      Boolean   @default(false)
+  relanceeAt    DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

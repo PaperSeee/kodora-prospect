@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kodora Prospect
 
-## Getting Started
+Outil de prospection local pour l'agence Kodora. Sourcez des professionnels locaux, diagnostiquez leur site, scorez les opportunités, générez des emails IA, et pilotez votre pipeline CRM.
 
-First, run the development server:
+## Prérequis
+
+- Node.js 18+
+- npm
+
+## Lancement
 
 ```bash
+npm install
+npx prisma migrate dev
+npx playwright install chromium   # Pour le scraper fallback (sans clé Google Places)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvre http://localhost:3000 → redirige automatiquement vers le Pipeline.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Variables d'environnement
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Crée un fichier `.env.local` à la racine (ou modifie `.env`) :
 
-## Learn More
+```env
+DATABASE_URL="file:./kodora.db"
+ANTHROPIC_API_KEY=""        # Optionnel — pour la génération email IA
+GOOGLE_PLACES_API_KEY=""    # Optionnel — pour le sourcing Google Places
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Obtenir les clés
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**ANTHROPIC_API_KEY** (génération emails) :
+→ https://console.anthropic.com → API Keys → Create Key
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**GOOGLE_PLACES_API_KEY** (sourcing) :
+→ https://console.cloud.google.com → APIs & Services → Credentials
+→ Activer : "Places API" et "Places API (New)"
+→ Facturation : ~0,017 $ par requête Place Details (volume modéré)
 
-## Deploy on Vercel
+Sans ces clés, l'app fonctionne en mode dégradé :
+- Sans Google Places → fallback Playwright (scraper Google Maps)
+- Sans Anthropic → template email statique paramétré
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Architecture
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+app/
+  pipeline/       → Page principale CRM drag & drop
+  sourcer/        → Formulaire de sourcing
+  api/
+    sourcing/     → Sourcing + diagnostic + scoring (streaming SSE)
+    prospects/    → CRUD prospects
+    email/        → Génération email IA
+    secteurs/     → Liste des secteurs
+lib/
+  prisma.ts             → Client Prisma singleton
+  diagnose.ts           → Diagnostic HTTP du site web
+  score.ts              → Algorithme de scoring 0-100
+  email-templates.ts    → Templates email statiques (fallback)
+  scraper-fallback.ts   → Scraper Playwright Google Maps ⚠️ fragile
+components/
+  Pipeline.tsx          → Board Kanban drag & drop
+  Sourcer.tsx           → Formulaire + progression en direct
+  ProspectDetail.tsx    → Panneau de détail prospect
+  ScoreBadge.tsx        → Badge coloré score
+  DiagnosticBadges.tsx  → Badges problèmes détectés
+```
+
+## ⚠️ Note sur le scraper fallback
+
+`lib/scraper-fallback.ts` est fragile par nature : il scrape Google Maps via les sélecteurs DOM de Playwright. Si Google modifie son HTML, les sélecteurs cassent.
+**C'est le seul fichier à corriger** en cas de panne du sourcing sans clé Google Places.
+
+## Cold email — RGPD
+
+L'outil prépare les emails mais **n'envoie rien automatiquement**.
+- Volume modéré uniquement (< 100/jour recommandé)
+- Chaque email inclut un opt-out "répondez STOP"
+- Ne faites pas de WhatsApp/SMS à froid (risque de ban + sanctions RGPD)

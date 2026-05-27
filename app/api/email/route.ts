@@ -1,0 +1,74 @@
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { staticEmailTemplate } from "@/lib/email-templates"
+import type { DiagnosticFlag } from "@/lib/diagnose"
+
+export async function POST(req: NextRequest) {
+  const { prospectId } = await req.json()
+
+  const prospect = await prisma.prospect.findUnique({ where: { id: prospectId } })
+  if (!prospect) return NextResponse.json({ error: "Prospect introuvable" }, { status: 404 })
+
+  const diagData = prospect.diagnostic ? JSON.parse(prospect.diagnostic) : { flags: [] }
+  const flags: DiagnosticFlag[] = diagData.flags ?? []
+
+  const apiKey = process.env.ANTHROPIC_API_KEY
+
+  let objet: string
+  let corps: string
+
+  if (apiKey) {
+    try {
+      const Anthropic = (await import("@anthropic-ai/sdk")).default
+      const client = new Anthropic({ apiKey })
+
+      const problemes = flags.join(", ") || "présence web insuffisante"
+      const avisInfo = prospect.avis ? `${prospect.avis} avis Google` : "pas d'avis connus"
+
+      const message = await client.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 600,
+        messages: [
+          {
+            role: "user",
+            content: `Tu es un expert en prospection web B2B. Rédige un email de prospection froid en français pour un ${prospect.secteur} nommé "${prospect.nom}" à ${prospect.ville}.
+
+Problèmes détectés sur leur site : ${problemes}
+Informations additionnelles : ${avisInfo}
+
+Règles :
+- Ton professionnel mais humain, adapté au secteur (${prospect.secteur})
+- Court : objet + 4 à 6 lignes de corps maximum
+- Mentionner naturellement le problème précis du site
+- Finir par la signature : "Ilias — Kodora\\n+32 451 05 33 70\\nhttps://www.kodora.eu" puis "Répondez STOP pour ne plus recevoir nos messages"
+- NE PAS mentionner de tarif
+
+Réponds UNIQUEMENT en JSON avec ce format exact :
+{"objet": "...", "corps": "..."}`,
+          },
+        ],
+      })
+
+      const text = message.content[0].type === "text" ? message.content[0].text : ""
+      const parsed = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] ?? "{}")
+      objet = parsed.objet ?? ""
+      corps = parsed.corps ?? ""
+    } catch (err) {
+      console.error("[email] Anthropic error, falling back to template:", err)
+      const tmpl = staticEmailTemplate(prospect.nom, prospect.secteur, flags, prospect.avis)
+      objet = tmpl.objet
+      corps = tmpl.corps
+    }
+  } else {
+    const tmpl = staticEmailTemplate(prospect.nom, prospect.secteur, flags, prospect.avis)
+    objet = tmpl.objet
+    corps = tmpl.corps
+  }
+
+  await prisma.prospect.update({
+    where: { id: prospectId },
+    data: { emailObjet: objet, emailCorps: corps },
+  })
+
+  return NextResponse.json({ objet, corps })
+}
