@@ -37,7 +37,6 @@
     "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
-    "playwright": "^1.60.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "wait-on": "^9.0.10"
