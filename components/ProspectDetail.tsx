@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import type { Prospect } from "@prisma/client"
+import type { Prospect } from "@/lib/types"
 import { ScoreBadge } from "./ScoreBadge"
 import { DiagnosticBadges } from "./DiagnosticBadges"
 
@@ -14,7 +14,7 @@ interface Props {
 
 export function ProspectDetail({ prospect, onClose, onUpdate, onDelete }: Props) {
   const [notes, setNotes] = useState(prospect.notes ?? "")
-  const [emailDest, setEmailDest] = useState((prospect as Record<string, unknown>).email as string ?? "")
+  const [emailDest, setEmailDest] = useState(prospect.email ?? "")
   const [emailObjet, setEmailObjet] = useState(prospect.emailObjet ?? "")
   const [emailCorps, setEmailCorps] = useState(prospect.emailCorps ?? "")
   const [generating, setGenerating] = useState(false)

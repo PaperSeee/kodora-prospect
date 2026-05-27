@@ -12,7 +12,7 @@ import {
   useDroppable,
   useDraggable,
 } from "@dnd-kit/core"
-import type { Prospect } from "@prisma/client"
+import type { Prospect } from "@/lib/types"
 import { ScoreBadge } from "./ScoreBadge"
 import { ProspectDetail } from "./ProspectDetail"
 
