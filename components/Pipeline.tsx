@@ -120,6 +120,7 @@ export function Pipeline() {
   const [batchSending, setBatchSending] = useState(false)
   const [sendResult, setSendResult] = useState<{ count: number; errors: string[] } | null>(null)
   const [showSansEmail, setShowSansEmail] = useState(false)
+  const [batchLimit, setBatchLimit] = useState(50)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
@@ -186,11 +187,16 @@ export function Pipeline() {
   }
 
   const sendBatch = async () => {
-    if (!confirm(`Envoyer ${stats.pretsEnvoyer} email(s) maintenant via Brevo ?`)) return
+    const limite = Math.min(batchLimit, stats.pretsEnvoyer)
+    if (!confirm(`Envoyer ${limite} email(s) maintenant via Brevo ?`)) return
     setBatchSending(true)
     setSendResult(null)
 
-    const res = await fetch("/api/send-email/batch-stream", { method: "POST" })
+    const res = await fetch("/api/send-email/batch-stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ limit: limite }),
+    })
     if (!res.body) { setBatchSending(false); return }
 
     const reader = res.body.getReader()
@@ -249,15 +255,27 @@ export function Pipeline() {
             </button>
           )}
           {stats.pretsEnvoyer > 0 && (
-            <button
-              onClick={sendBatch}
-              disabled={batchSending}
-              className="rounded bg-emerald-700 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-600 disabled:opacity-50"
-            >
-              {batchSending
-                ? "Envoi en cours..."
-                : `📤 Envoyer ${stats.pretsEnvoyer} email(s)`}
-            </button>
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                min={1}
+                max={300}
+                value={batchLimit}
+                onChange={(e) => setBatchLimit(Math.max(1, Math.min(300, parseInt(e.target.value) || 1)))}
+                disabled={batchSending}
+                className="w-16 rounded bg-zinc-700 px-2 py-1 text-center text-xs text-white disabled:opacity-50"
+                title="Nombre max de mails à envoyer (limite Brevo : 300/jour)"
+              />
+              <button
+                onClick={sendBatch}
+                disabled={batchSending}
+                className="rounded bg-emerald-700 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-600 disabled:opacity-50"
+              >
+                {batchSending
+                  ? "Envoi en cours..."
+                  : `📤 Envoyer (${Math.min(batchLimit, stats.pretsEnvoyer)} / ${stats.pretsEnvoyer})`}
+              </button>
+            </div>
           )}
           {sendResult && (
             <span className="text-xs text-emerald-400">

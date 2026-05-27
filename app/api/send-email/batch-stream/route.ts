@@ -7,13 +7,19 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.BREVO_API_KEY
   if (!apiKey) return NextResponse.json({ error: "BREVO_API_KEY manquante" }, { status: 400 })
 
-  const prospects = await prisma.prospect.findMany({
+  const body = await req.json().catch(() => ({}))
+  const limit = Math.min(Math.max(1, parseInt(body.limit) || 300), 300)
+
+  const allProspects = await prisma.prospect.findMany({
     where: {
       email: { not: null },
       emailCorps: { not: null },
       statut: "a_contacter",
     },
+    orderBy: { score: "desc" },
   })
+
+  const prospects = allProspects.slice(0, limit)
 
   if (!prospects.length) {
     return NextResponse.json({ count: 0, message: "Aucun prospect prêt" })
