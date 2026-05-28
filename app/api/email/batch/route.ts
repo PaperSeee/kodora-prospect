@@ -6,8 +6,10 @@ import type { DiagnosticFlag } from "@/lib/diagnose"
 export async function POST(req: NextRequest) {
   const { statut } = await req.json()
 
-  const where = statut ? { statut, emailCorps: null } : { emailCorps: null }
-  const prospects = await prisma.prospect.findMany({ where })
+  // Match both null and empty string (some records stored as "")
+  const baseWhere = { OR: [{ emailCorps: null }, { emailCorps: "" }] }
+  const where = statut ? { statut, ...baseWhere } : baseWhere
+  const prospects = await prisma.prospect.findMany({ where, take: 10, orderBy: { score: "desc" } })
 
   const apiKey = process.env.ANTHROPIC_API_KEY
   let Anthropic: typeof import("@anthropic-ai/sdk").default | null = null
@@ -80,8 +82,7 @@ Réponds UNIQUEMENT en JSON avec ce format exact :
     })
     count++
 
-    // Petite pause pour ne pas saturer l'API
-    if (Anthropic) await new Promise((r) => setTimeout(r, 300))
+    if (Anthropic) await new Promise((r) => setTimeout(r, 100))
   }
 
   return NextResponse.json({ count })

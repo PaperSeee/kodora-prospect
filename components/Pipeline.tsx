@@ -177,13 +177,22 @@ export function Pipeline() {
 
   const generateBatch = async () => {
     setBatchGenerating(true)
-    await fetch("/api/email/batch", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    })
+    let totalGenerated = 0
+    // Appelle par rounds de 10 jusqu'à ce qu'il n'y ait plus rien à générer
+    for (let i = 0; i < 20; i++) {
+      const res = await fetch("/api/email/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      })
+      const data = await res.json()
+      totalGenerated += data.count ?? 0
+      if (!data.count || data.count === 0) break
+      await loadProspects(search, secteurFilter, sortBy)
+    }
     await loadProspects(search, secteurFilter, sortBy)
     setBatchGenerating(false)
+    if (totalGenerated > 0) alert(`${totalGenerated} email(s) générés.`)
   }
 
   const sendBatch = async () => {
