@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react"
 import type { Prospect } from "@/lib/types"
+import type { DiagnosticFlag } from "@/lib/diagnose"
 import { ScoreBadge } from "./ScoreBadge"
 import { DiagnosticBadges } from "./DiagnosticBadges"
 
