@@ -23,7 +23,7 @@ export function ProspectDetail({ prospect, onClose, onUpdate, onDelete }: Props)
   const [copied, setCopied] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  let diagData = { flags: [] as string[] }
+  let diagData: { flags: DiagnosticFlag[] } = { flags: [] }
   try { diagData = prospect.diagnostic ? JSON.parse(prospect.diagnostic) : { flags: [] } } catch {}
   const flags = diagData.flags ?? []
 
