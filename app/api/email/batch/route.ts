@@ -7,8 +7,8 @@ export async function POST(req: NextRequest) {
   const { statut } = await req.json()
 
   // Match both null and empty string (some records stored as "")
-  const baseWhere = { OR: [{ emailCorps: null }, { emailCorps: "" }] }
-  const where = statut ? { statut, ...baseWhere } : baseWhere
+  const baseWhere = { OR: [{ emailCorps: null }, { emailCorps: "" }], statut: "a_contacter" }
+  const where = statut ? { ...baseWhere, statut } : baseWhere
   const prospects = await prisma.prospect.findMany({ where, take: 10, orderBy: { score: "desc" } })
 
   const apiKey = process.env.ANTHROPIC_API_KEY

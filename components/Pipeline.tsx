@@ -171,7 +171,7 @@ export function Pipeline() {
     total: prospects.length,
     chauds: prospects.filter((p) => p.score >= 50).length,
     signes: prospects.filter((p) => p.statut === "signe").length,
-    sansEmail: prospects.filter((p) => !p.emailCorps).length,
+    sansEmail: prospects.filter((p) => !p.emailCorps && p.statut === "a_contacter").length,
     pretsEnvoyer: prospects.filter((p) => p.email && p.emailCorps && p.statut === "a_contacter").length,
   }
 
