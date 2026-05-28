@@ -136,7 +136,25 @@ Kodora — kodora.eu
 Pour ne plus recevoir mes messages, répondez STOP.`
 
   } else {
-    return null
+    // Fallback générique (PAS_HTTPS, flags inconnus, ou aucun flag)
+    const objets = [
+      "Une observation sur votre présence web",
+      "J'ai regardé votre site",
+      "Petite question sur votre site",
+      "Un retour rapide sur votre site",
+    ]
+    objet = pick(objets, nom)
+    corps = `Bonjour,
+
+J'ai regardé votre présence en ligne et j'ai noté quelques points qui pourraient freiner vos contacts depuis le web${avisText}.
+
+Je m'appelle Ilias, je travaille avec des ${secteur} pour améliorer leur visibilité en ligne. Si vous voulez qu'on en parle rapidement, répondez simplement à ce mail.
+
+Ilias
+Kodora — kodora.eu
++32 451 05 33 70
+
+Pour ne plus recevoir mes messages, répondez STOP.`
   }
 
   return { objet, corps }

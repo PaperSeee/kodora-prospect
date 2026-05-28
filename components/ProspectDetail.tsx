@@ -23,7 +23,8 @@ export function ProspectDetail({ prospect, onClose, onUpdate, onDelete }: Props)
   const [copied, setCopied] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  const diagData = prospect.diagnostic ? JSON.parse(prospect.diagnostic) : { flags: [] }
+  let diagData = { flags: [] as string[] }
+  try { diagData = prospect.diagnostic ? JSON.parse(prospect.diagnostic) : { flags: [] } } catch {}
   const flags = diagData.flags ?? []
 
   const saveField = useCallback(
@@ -55,9 +56,11 @@ export function ProspectDetail({ prospect, onClose, onUpdate, onDelete }: Props)
       body: JSON.stringify({ prospectId: prospect.id }),
     })
     const data = await res.json()
-    setEmailObjet(data.objet ?? "")
-    setEmailCorps(data.corps ?? "")
-    onUpdate({ ...prospect, emailObjet: data.objet, emailCorps: data.corps })
+    if (res.ok && data.objet) {
+      setEmailObjet(data.objet)
+      setEmailCorps(data.corps)
+      onUpdate({ ...prospect, emailObjet: data.objet, emailCorps: data.corps })
+    }
     setGenerating(false)
   }
 
