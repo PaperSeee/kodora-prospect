@@ -39,4 +39,31 @@ model Prospect {
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  audits      Audit[]
+}
+
+model EarlyAccessSignup {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  url       String?
+  createdAt DateTime @default(now())
+}
+
+model Audit {
+  id                   String    @id @default(cuid())
+  prospectId           Int
+  prospect             Prospect  @relation(fields: [prospectId], references: [id])
+  publicSlug           String    @unique
+  score                Int
+  problemesJson        String    // JSON sérialisé (SQLite pas de Json natif)
+  rapportJson          String?   // snapshot complet AuditResult sérialisé
+  generatedAt          DateTime  @default(now())
+  firstViewedAt        DateTime?
+  lastViewedAt         DateTime?
+  viewCount            Int       @default(0)
+  ctaClicked           Boolean   @default(false)
+  ctaClickedAt         DateTime?
+  emailCapturedAt      DateTime?
+  emailCaptured        String?
 }

@@ -1,5 +1,72 @@
 import type { DiagnosticFlag } from "./diagnose"
 
+// ── Nouveau template funnel audit ────────────────────────────────
+// Utilisé quand un audit LokalSEO a été généré pour le prospect
+
+const OBJETS_AUDIT = [
+  (nom: string) => `${nom}, votre site`,
+  (nom: string) => `Question rapide sur ${nom}`,
+  (_nom: string) => `Audit gratuit — 30 secondes`,
+]
+
+function pickAuditObjet(nom: string): string {
+  const idx = nom.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % OBJETS_AUDIT.length
+  const fn = OBJETS_AUDIT[idx]
+  const result = fn(nom)
+  // Tronquer à 50 chars
+  return result.length > 50 ? result.slice(0, 47) + "..." : result
+}
+
+export function auditEmailTemplate(
+  nom: string,
+  score: number,
+  nbProblemes: number,
+  auditUrl: string,
+): { objet: string; corps: string } {
+  const prenom = nom.split(" ")[0]
+  const objet = pickAuditObjet(nom)
+
+  const corps = `Bonjour ${prenom},
+
+J'ai fait un audit rapide de la présence en ligne de ${nom} ce matin.
+
+Score actuel : ${score}/100 — ${nbProblemes} axe${nbProblemes > 1 ? "s" : ""} prioritaire${nbProblemes > 1 ? "s" : ""} identifié${nbProblemes > 1 ? "s" : ""}.
+
+Le détail est ici (sans inscription, 30 secondes) :
+→ ${auditUrl}
+
+Aucune obligation, juste un état des lieux.
+
+Bonne journée,
+Ilias — Kodora
+
+P.S. — Si ce mail ne vous intéresse pas, ignorez-le simplement, je ne vous recontacterai pas.`
+
+  return { objet, corps }
+}
+
+export function auditWarmFollowUpTemplate(
+  nom: string,
+  auditUrl: string,
+): { objet: string; corps: string } {
+  const prenom = nom.split(" ")[0]
+  return {
+    objet: "Une question sur votre audit ?",
+    corps: `Bonjour ${prenom},
+
+J'ai vu que vous avez consulté votre audit. Y a-t-il un point que vous souhaitez clarifier ou une question sur les résultats ?
+
+Le rapport est toujours accessible ici : ${auditUrl}
+
+Bonne journée,
+Ilias — Kodora
+
+P.S. — Si vous n'êtes pas intéressé, ignorez simplement ce message.`,
+  }
+}
+
+
+
 // Objets variés pour éviter la répétition qui déclenche les filtres spam
 const OBJETS_SITE_ABSENT = [
   "Une question rapide",

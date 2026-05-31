@@ -16,9 +16,30 @@ import type { Prospect } from "@/lib/types"
 import { ScoreBadge } from "./ScoreBadge"
 import { ProspectDetail } from "./ProspectDetail"
 
+interface AuditSummary {
+  publicSlug: string
+  score: number
+  viewCount: number
+  ctaClicked: boolean
+  firstViewedAt: string | null
+}
+
+function useProspectAudit(prospectId: number, statut: string) {
+  const [audit, setAudit] = useState<AuditSummary | null>(null)
+  useEffect(() => {
+    if (!["contacte", "lead_chaud", "a_repondu", "rdv"].includes(statut)) return
+    fetch(`/api/prospects/${prospectId}/audit`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => d && setAudit(d))
+      .catch(() => {})
+  }, [prospectId, statut])
+  return audit
+}
+
 const COLONNES = [
   { id: "a_contacter", label: "À contacter" },
   { id: "contacte", label: "Contacté" },
+  { id: "lead_chaud", label: "🔥 Lead chaud" },
   { id: "a_repondu", label: "A répondu" },
   { id: "rdv", label: "RDV" },
   { id: "signe", label: "Signé ✅" },
@@ -34,10 +55,13 @@ function ProspectCard({
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: prospect.id,
   })
+  const audit = useProspectAudit(prospect.id, prospect.statut)
 
   const style = transform
     ? { transform: `translate(${transform.x}px, ${transform.y}px)`, opacity: isDragging ? 0 : 1 }
     : undefined
+
+  const baseUrl = process.env.NEXT_PUBLIC_RAPPORT_BASE_URL || "/rapport/"
 
   return (
     <div
@@ -62,12 +86,48 @@ function ProspectCard({
       {prospect.telephone && (
         <p className="mt-1 text-xs text-zinc-500">📞 {prospect.telephone}</p>
       )}
-      <div className="mt-1.5 flex gap-1">
+
+      {/* Badges audit */}
+      {audit && (
+        <div className="mt-2 rounded-md bg-zinc-900 px-2 py-1.5 text-[10px] space-y-0.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-zinc-400">Score audit</span>
+            <span className="font-bold text-indigo-400">{audit.score}/100</span>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-zinc-400">Consultations</span>
+            <span className={`font-bold ${audit.viewCount > 0 ? "text-emerald-400" : "text-zinc-500"}`}>
+              {audit.viewCount > 0 ? `${audit.viewCount} vue${audit.viewCount > 1 ? "s" : ""}` : "Pas encore vu"}
+            </span>
+          </div>
+          {audit.ctaClicked && (
+            <div className="flex items-center gap-1 text-orange-400 font-bold">
+              🔥 CTA cliqué
+            </div>
+          )}
+          {audit.viewCount > 0 && (
+            <a
+              href={`${baseUrl}${audit.publicSlug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="block text-center text-indigo-400 hover:text-indigo-300 mt-1"
+            >
+              Voir l'audit →
+            </a>
+          )}
+        </div>
+      )}
+
+      <div className="mt-1.5 flex gap-1 flex-wrap">
         {prospect.emailOuvert && (
           <span className="rounded-full bg-blue-900 px-1.5 py-0.5 text-[10px] text-blue-300">👁 Ouvert</span>
         )}
         {prospect.relancee && (
           <span className="rounded-full bg-purple-900 px-1.5 py-0.5 text-[10px] text-purple-300">↩ Relancé</span>
+        )}
+        {prospect.statut === "lead_chaud" && (
+          <span className="rounded-full bg-orange-900 px-1.5 py-0.5 text-[10px] text-orange-300">🔥 Chaud</span>
         )}
       </div>
     </div>
@@ -121,6 +181,7 @@ export function Pipeline() {
   const [sendResult, setSendResult] = useState<{ count: number; errors: string[] } | null>(null)
   const [showSansEmail, setShowSansEmail] = useState(false)
   const [batchLimit, setBatchLimit] = useState(50)
+  const [auditFilter, setAuditFilter] = useState<"" | "consulte" | "cta" | "pas_consulte">("")
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
