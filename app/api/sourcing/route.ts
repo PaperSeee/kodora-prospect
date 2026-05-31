@@ -115,14 +115,28 @@ export async function POST(req: NextRequest) {
         })
         if (existing) continue
 
-        // Diagnostic
-        const diag = await diagnoseSite(p.siteWeb)
+        // Plateformes tierces — pas un vrai site perso, on ignore
+        const PLATEFORMES = [
+          "doctoranytime", "zocdoc", "practo", "livi", "qare",
+          "facebook.com", "instagram.com", "linkedin.com",
+          "pages.google.com", "google.com/maps",
+          "yelp.com", "tripadvisor", "booking.com",
+          "trustedshops", "doctoralia", "onemedical",
+        ]
+        const estPlateforme = p.siteWeb
+          ? PLATEFORMES.some(p2 => p.siteWeb!.toLowerCase().includes(p2))
+          : false
 
-        // Extraction email : priorité site web, sinon email déjà dans la fiche Maps
+        const siteWebReel = estPlateforme ? undefined : p.siteWeb
+
+        // Diagnostic
+        const diag = await diagnoseSite(siteWebReel)
+
+        // Extraction email : priorité site web réel uniquement
         const { extractEmailFromSite } = await import("@/lib/extract-email")
         let emailTrouve: string | null = p.email ?? null
-        if (!emailTrouve && p.siteWeb) {
-          emailTrouve = await extractEmailFromSite(p.siteWeb)
+        if (!emailTrouve && siteWebReel) {
+          emailTrouve = await extractEmailFromSite(siteWebReel)
         }
 
         // Score
@@ -135,7 +149,7 @@ export async function POST(req: NextRequest) {
             ville: p.ville,
             telephone: p.telephone,
             email: emailTrouve ?? undefined,
-            siteWeb: p.siteWeb,
+            siteWeb: siteWebReel,
             note: p.note,
             avis: p.avis,
             diagnostic: JSON.stringify(diag),
