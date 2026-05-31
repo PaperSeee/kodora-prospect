@@ -60,9 +60,12 @@ function findEmailInHtml(html: string): string | null {
     .replace(/&#46;/g, ".")
     .replace(/\[dot\]/gi, ".")
 
-  // Regex email standard
-  const emailRegex = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g
-  const matches = decoded.match(emailRegex) ?? []
+  // Supprimer les balises HTML avant de matcher pour éviter le texte collé
+  const stripped = decoded.replace(/<[^>]+>/g, " ")
+
+  // Regex email avec word boundary stricte
+  const emailRegex = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}(?=[^a-zA-Z0-9._%+\-@]|$)/g
+  const matches = stripped.match(emailRegex) ?? []
 
   // Filtrer les emails non pertinents
   const blacklist = [
