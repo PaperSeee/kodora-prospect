@@ -177,6 +177,7 @@ export function Pipeline() {
   const [secteurs, setSecteurs] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [batchGenerating, setBatchGenerating] = useState(false)
+  const [batchRegenerating, setBatchRegenerating] = useState(false)
   const [batchSending, setBatchSending] = useState(false)
   const [sendResult, setSendResult] = useState<{ count: number; errors: string[] } | null>(null)
   const [showSansEmail, setShowSansEmail] = useState(false)
@@ -239,7 +240,6 @@ export function Pipeline() {
   const generateBatch = async () => {
     setBatchGenerating(true)
     let totalGenerated = 0
-    // Appelle par rounds de 10 jusqu'à ce qu'il n'y ait plus rien à générer
     for (let i = 0; i < 20; i++) {
       const res = await fetch("/api/email/batch", {
         method: "POST",
@@ -254,6 +254,26 @@ export function Pipeline() {
     await loadProspects(search, secteurFilter, sortBy)
     setBatchGenerating(false)
     if (totalGenerated > 0) alert(`${totalGenerated} email(s) générés.`)
+  }
+
+  const regenerateAllBatch = async () => {
+    if (!confirm("Régénérer tous les mails avec le nouveau format (audit + score + lien) ? Ça peut prendre quelques minutes.")) return
+    setBatchRegenerating(true)
+    let totalRegenerated = 0
+    for (let i = 0; i < 200; i++) {
+      const res = await fetch("/api/email/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ regenerate: true }),
+      })
+      const data = await res.json()
+      totalRegenerated += data.count ?? 0
+      if (!data.count || data.count === 0) break
+      await loadProspects(search, secteurFilter, sortBy)
+    }
+    await loadProspects(search, secteurFilter, sortBy)
+    setBatchRegenerating(false)
+    alert(`✅ ${totalRegenerated} email(s) régénérés avec le nouveau format.`)
   }
 
   const sendBatch = async () => {
@@ -319,11 +339,17 @@ export function Pipeline() {
               disabled={batchGenerating}
               className="rounded bg-indigo-700 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
             >
-              {batchGenerating
-                ? "Génération en cours..."
-                : `Générer emails (${stats.sansEmail} sans)`}
+              {batchGenerating ? "Génération..." : `Générer emails (${stats.sansEmail} sans)`}
             </button>
           )}
+          <button
+            onClick={regenerateAllBatch}
+            disabled={batchRegenerating || batchGenerating}
+            className="rounded bg-violet-800 px-3 py-1 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+            title="Régénérer tous les mails avec audit + score + lien"
+          >
+            {batchRegenerating ? "Régénération..." : "🔄 Régénérer tous"}
+          </button>
           {stats.pretsEnvoyer > 0 && (
             <div className="flex items-center gap-1">
               <input
