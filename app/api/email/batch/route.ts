@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auditEmailTemplate, staticEmailTemplate } from "@/lib/email-templates"
+import { auditEmailTemplate, noSiteEmailTemplate, staticEmailTemplate } from "@/lib/email-templates"
 import { generateAudit } from "@/lib/audit-generator"
 import type { DiagnosticFlag } from "@/lib/diagnose"
+
+const PLATEFORMES = ["doctoranytime", "zocdoc", "practo", "facebook.com", "instagram.com", "linkedin.com"]
+function hasSiteReel(siteWeb?: string | null): boolean {
+  if (!siteWeb) return false
+  return !PLATEFORMES.some(p => siteWeb.toLowerCase().includes(p))
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
@@ -26,30 +32,35 @@ export async function POST(req: NextRequest) {
 
   for (const prospect of prospects) {
     try {
-      // Obtenir ou générer l'audit
-      let audit = prospect.audits[0] ?? null
-      if (!audit) {
-        try { audit = await generateAudit(prospect.id) } catch { /* ignore */ }
-      }
-
       let objet: string
       let corps: string
 
-      if (audit) {
-        // Nouveau template avec score + lien audit
-        const auditUrl = `${baseUrl}${audit.publicSlug}`
-        const problemes = JSON.parse(audit.problemesJson ?? "[]") as { titre: string }[]
-        const result = auditEmailTemplate(prospect.nom, audit.score, problemes.length || 3, auditUrl)
+      // Pas de site réel → template "pas de site"
+      if (!hasSiteReel(prospect.siteWeb)) {
+        const result = noSiteEmailTemplate(prospect.nom, prospect.secteur, prospect.ville, prospect.avis)
         objet = result.objet
         corps = result.corps
       } else {
-        // Fallback template générique
-        const diagData = prospect.diagnostic ? JSON.parse(prospect.diagnostic) : { flags: [] }
-        const flags: DiagnosticFlag[] = diagData.flags ?? []
-        const tmpl = staticEmailTemplate(prospect.nom, prospect.secteur, flags, prospect.avis)
-        if (!tmpl) continue
-        objet = tmpl.objet
-        corps = tmpl.corps
+        // A un site → audit + template audit
+        let audit = prospect.audits[0] ?? null
+        if (!audit) {
+          try { audit = await generateAudit(prospect.id) } catch { /* ignore */ }
+        }
+
+        if (audit) {
+          const auditUrl = `${baseUrl}${audit.publicSlug}`
+          const problemes = JSON.parse(audit.problemesJson ?? "[]") as { titre: string }[]
+          const result = auditEmailTemplate(prospect.nom, audit.score, problemes.length || 3, auditUrl)
+          objet = result.objet
+          corps = result.corps
+        } else {
+          const diagData = prospect.diagnostic ? JSON.parse(prospect.diagnostic) : { flags: [] }
+          const flags: DiagnosticFlag[] = diagData.flags ?? []
+          const tmpl = staticEmailTemplate(prospect.nom, prospect.secteur, flags, prospect.avis)
+          if (!tmpl) continue
+          objet = tmpl.objet
+          corps = tmpl.corps
+        }
       }
 
       await prisma.prospect.update({

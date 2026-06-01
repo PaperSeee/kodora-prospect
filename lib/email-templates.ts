@@ -17,6 +17,47 @@ function pickAuditObjet(nom: string): string {
   return result.length > 50 ? result.slice(0, 47) + "..." : result
 }
 
+const PLATEFORMES_LABELS = ["doctoranytime", "zocdoc", "practo", "facebook.com", "instagram.com", "linkedin.com"]
+
+export function isPlateformUrl(url?: string | null): boolean {
+  if (!url) return false
+  return PLATEFORMES_LABELS.some(p => url.toLowerCase().includes(p))
+}
+
+const OBJETS_NO_SITE = [
+  (nom: string) => `Question rapide — ${nom}`,
+  (nom: string) => `${nom}, je n'ai pas trouvé votre site`,
+  (_nom: string) => `Une question rapide`,
+]
+
+export function noSiteEmailTemplate(
+  nom: string,
+  secteur: string,
+  ville: string,
+  avis?: number | null,
+): { objet: string; corps: string } {
+  const prenom = nom.split(" ")[0]
+  const idx = nom.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % OBJETS_NO_SITE.length
+  const objet = OBJETS_NO_SITE[idx](nom).slice(0, 50)
+  const avisText = avis && avis > 0 ? ` — vous avez ${avis} avis Google` : ""
+
+  const corps = `Bonjour ${prenom},
+
+Je cherchais des ${secteur} à ${ville} et je n'ai pas trouvé de site web pour ${nom}${avisText}.
+
+Beaucoup de clients cherchent en ligne avant d'appeler — sans site, ces demandes vont chez vos confrères.
+
+Je crée des sites vitrines pour des ${secteur} en 7 jours, à partir de 299 €. Si ça vous intéresse, répondez simplement à ce mail.
+
+Bonne journée,
+Ilias — Kodora
+kodora.eu · +32 451 05 33 70
+
+P.S. — Si ce mail ne vous intéresse pas, ignorez-le simplement.`
+
+  return { objet, corps }
+}
+
 export function auditEmailTemplate(
   nom: string,
   score: number,

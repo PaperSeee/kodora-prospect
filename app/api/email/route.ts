@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { auditEmailTemplate, staticEmailTemplate } from "@/lib/email-templates"
+import { auditEmailTemplate, noSiteEmailTemplate, isPlateformUrl, staticEmailTemplate } from "@/lib/email-templates"
 import { generateAudit } from "@/lib/audit-generator"
 import type { DiagnosticFlag } from "@/lib/diagnose"
+
+const PLATEFORMES = ["doctoranytime", "zocdoc", "practo", "facebook.com", "instagram.com", "linkedin.com"]
+
+function hasSiteReel(siteWeb?: string | null): boolean {
+  if (!siteWeb) return false
+  return !PLATEFORMES.some(p => siteWeb.toLowerCase().includes(p))
+}
 
 export async function POST(req: NextRequest) {
   const { prospectId } = await req.json()
@@ -13,7 +20,14 @@ export async function POST(req: NextRequest) {
   })
   if (!prospect) return NextResponse.json({ error: "Prospect introuvable" }, { status: 404 })
 
-  // ── Étape 1 : obtenir ou générer l'audit ─────────────────────
+  // ── Cas 1 : pas de site réel → template "pas de site" direct ──
+  if (!hasSiteReel(prospect.siteWeb)) {
+    const { objet, corps } = noSiteEmailTemplate(prospect.nom, prospect.secteur, prospect.ville, prospect.avis)
+    await prisma.prospect.update({ where: { id: prospectId }, data: { emailObjet: objet, emailCorps: corps } })
+    return NextResponse.json({ objet, corps })
+  }
+
+  // ── Cas 2 : a un site → générer audit + template audit ────────
   let audit = prospect.audits[0] ?? null
   if (!audit) {
     try {
@@ -25,7 +39,6 @@ export async function POST(req: NextRequest) {
 
   const baseUrl = process.env.PUBLIC_RAPPORT_BASE_URL || "https://lokalseo.be/rapport/"
 
-  // ── Étape 2 : si audit dispo → template audit ────────────────
   if (audit) {
     const auditUrl = `${baseUrl}${audit.publicSlug}`
     const problemes = JSON.parse(audit.problemesJson ?? "[]") as { titre: string }[]
