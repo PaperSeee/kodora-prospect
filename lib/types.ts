@@ -15,6 +15,7 @@ export interface Prospect {
   diagnostic: string | null
   emailObjet: string | null
   emailCorps: string | null
+  emailHtml: string | null
   notes: string | null
   emailOuvert: boolean
   emailOuvertAt: Date | null

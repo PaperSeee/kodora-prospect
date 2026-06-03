@@ -31,7 +31,9 @@ export async function POST(req: NextRequest) {
           },
           to: [{ email: prospect.email!, name: prospect.nom }],
           subject: prospect.emailObjet ?? `Votre présence en ligne — ${prospect.nom}`,
-          textContent: prospect.emailCorps!,
+          ...(prospect.emailHtml
+            ? { htmlContent: prospect.emailHtml, textContent: prospect.emailCorps! }
+            : { textContent: prospect.emailCorps! }),
         }),
       })
 

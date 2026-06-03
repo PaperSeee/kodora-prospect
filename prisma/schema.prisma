@@ -27,6 +27,7 @@ model Prospect {
   // Email généré par IA
   emailObjet  String?
   emailCorps  String?
+  emailHtml   String?
 
   // Notes perso CRM
   notes       String?

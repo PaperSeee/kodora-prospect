@@ -33,7 +33,9 @@ export async function POST(req: NextRequest) {
       sender: { name: "Ilias — Kodora", email: process.env.BREVO_SENDER_EMAIL ?? "ilias300@outlook.be" },
       to: [{ email: emailDest, name: prospect.nom }],
       subject: prospect.emailObjet ?? `Votre présence en ligne — ${prospect.nom}`,
-      textContent: prospect.emailCorps,
+      ...(prospect.emailHtml
+        ? { htmlContent: prospect.emailHtml, textContent: prospect.emailCorps }
+        : { textContent: prospect.emailCorps }),
     }),
   })
 

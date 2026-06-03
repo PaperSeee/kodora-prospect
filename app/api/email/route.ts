@@ -43,14 +43,14 @@ export async function POST(req: NextRequest) {
     const auditUrl = `${baseUrl}${audit.publicSlug}`
     const problemes = JSON.parse(audit.problemesJson ?? "[]") as { titre: string }[]
     const nbProblemes = problemes.length || 3
-    const { objet, corps } = auditEmailTemplate(prospect.nom, audit.score, nbProblemes, auditUrl)
+    const { objet, corps, html } = auditEmailTemplate(prospect.nom, audit.score, nbProblemes, auditUrl)
 
     await prisma.prospect.update({
       where: { id: prospectId },
-      data: { emailObjet: objet, emailCorps: corps },
+      data: { emailObjet: objet, emailCorps: corps, emailHtml: html },
     })
 
-    return NextResponse.json({ objet, corps, auditUrl, score: audit.score })
+    return NextResponse.json({ objet, corps, html, auditUrl, score: audit.score })
   }
 
   // ── Étape 3 : fallback template générique ────────────────────

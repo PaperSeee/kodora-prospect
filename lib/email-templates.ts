@@ -63,7 +63,7 @@ export function auditEmailTemplate(
   score: number,
   nbProblemes: number,
   auditUrl: string,
-): { objet: string; corps: string } {
+): { objet: string; corps: string; html: string } {
   const prenom = nom.split(" ")[0]
   const objet = pickAuditObjet(nom)
 
@@ -73,8 +73,8 @@ J'ai fait un audit rapide de la présence en ligne de ${nom} ce matin.
 
 Score actuel : ${score}/100 — ${nbProblemes} axe${nbProblemes > 1 ? "s" : ""} prioritaire${nbProblemes > 1 ? "s" : ""} identifié${nbProblemes > 1 ? "s" : ""}.
 
-Le détail est ici (sans inscription, 30 secondes) :
-→ ${auditUrl}
+Voir le rapport complet (sans inscription) :
+${auditUrl}
 
 Aucune obligation, juste un état des lieux.
 
@@ -83,7 +83,82 @@ Ilias — Kodora
 
 P.S. — Si ce mail ne vous intéresse pas, ignorez-le simplement, je ne vous recontacterai pas.`
 
-  return { objet, corps }
+  const scoreColor = score >= 70 ? "#16a34a" : score >= 45 ? "#d97706" : "#dc2626"
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 16px">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;max-width:560px;width:100%">
+        <!-- Header -->
+        <tr>
+          <td style="background:#0f172a;padding:24px 32px">
+            <p style="margin:0;color:#ffffff;font-size:18px;font-weight:700;letter-spacing:-0.3px">Kodora</p>
+            <p style="margin:4px 0 0;color:#94a3b8;font-size:12px">Présence web pour professionnels belges</p>
+          </td>
+        </tr>
+        <!-- Body -->
+        <tr>
+          <td style="padding:32px">
+            <p style="margin:0 0 16px;color:#1e293b;font-size:15px;line-height:1.6">Bonjour ${prenom},</p>
+            <p style="margin:0 0 24px;color:#334155;font-size:15px;line-height:1.6">
+              J'ai fait un audit rapide de la présence en ligne de <strong>${nom}</strong> ce matin.
+            </p>
+            <!-- Score box -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:24px">
+              <tr>
+                <td style="padding:20px 24px">
+                  <p style="margin:0 0 4px;color:#64748b;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px">Score de visibilité</p>
+                  <p style="margin:0;font-size:36px;font-weight:800;color:${scoreColor}">${score}<span style="font-size:18px;color:#94a3b8">/100</span></p>
+                  <p style="margin:8px 0 0;color:#475569;font-size:13px">
+                    ${nbProblemes} axe${nbProblemes > 1 ? "s" : ""} prioritaire${nbProblemes > 1 ? "s" : ""} identifié${nbProblemes > 1 ? "s" : ""} — détail complet dans le rapport.
+                  </p>
+                </td>
+              </tr>
+            </table>
+            <!-- CTA Button -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
+              <tr>
+                <td align="center">
+                  <a href="${auditUrl}" target="_blank"
+                    style="display:inline-block;background:#2563eb;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:6px;letter-spacing:-0.2px">
+                    Voir mon rapport complet →
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <td align="center" style="padding-top:10px">
+                  <p style="margin:0;color:#94a3b8;font-size:11px">Sans inscription · Prend 30 secondes</p>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:0 0 24px;color:#334155;font-size:14px;line-height:1.6">
+              Aucune obligation — c'est juste un état des lieux.
+            </p>
+            <p style="margin:0;color:#334155;font-size:14px;line-height:1.6">
+              Bonne journée,<br>
+              <strong>Ilias</strong> — Kodora<br>
+              <a href="https://kodora.eu" style="color:#2563eb;text-decoration:none">kodora.eu</a> · +32 451 05 33 70
+            </p>
+          </td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 32px">
+            <p style="margin:0;color:#94a3b8;font-size:11px;line-height:1.6">
+              P.S. — Si ce mail ne vous intéresse pas, ignorez-le simplement, je ne vous recontacterai pas.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+
+  return { objet, corps, html }
 }
 
 export function auditWarmFollowUpTemplate(
