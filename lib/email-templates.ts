@@ -6,8 +6,14 @@ import type { DiagnosticFlag } from "./diagnose"
 const OBJETS_AUDIT = [
   (nom: string) => `${nom}, votre site`,
   (nom: string) => `Question rapide sur ${nom}`,
-  (_nom: string) => `Audit gratuit — 30 secondes`,
+  (nom: string) => `${nom} sur Google`,
 ]
+
+// Met la première lettre en minuscule pour intégrer un titre dans une phrase
+// ("Site non optimisé pour mobile" → "site non optimisé pour mobile").
+function decapitalize(s: string): string {
+  return s.length > 0 ? s[0].toLowerCase() + s.slice(1) : s
+}
 
 function pickAuditObjet(nom: string): string {
   const idx = nom.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % OBJETS_AUDIT.length
@@ -63,15 +69,22 @@ export function auditEmailTemplate(
   score: number,
   nbProblemes: number,
   auditUrl: string,
+  premierProbleme?: string | null,
 ): { objet: string; corps: string; html: string } {
   const prenom = nom.split(" ")[0]
   const objet = pickAuditObjet(nom)
+
+  // Phrase de preuve concrète : cite le 1er problème détecté pour montrer que
+  // l'audit est réel et spécifique (et non un mailing générique).
+  const preuve = premierProbleme && premierProbleme.trim()
+    ? ` J'ai notamment relevé : ${decapitalize(premierProbleme.trim())}.`
+    : ""
 
   const corps = `Bonjour ${prenom},
 
 J'ai fait un audit rapide de la présence en ligne de ${nom} ce matin.
 
-Score actuel : ${score}/100 — ${nbProblemes} axe${nbProblemes > 1 ? "s" : ""} prioritaire${nbProblemes > 1 ? "s" : ""} identifié${nbProblemes > 1 ? "s" : ""}.
+Score actuel : ${score}/100 — ${nbProblemes} axe${nbProblemes > 1 ? "s" : ""} prioritaire${nbProblemes > 1 ? "s" : ""} identifié${nbProblemes > 1 ? "s" : ""}.${preuve}
 
 Voir le rapport complet (sans inscription) :
 ${auditUrl}
@@ -81,7 +94,7 @@ Aucune obligation, juste un état des lieux.
 Bonne journée,
 Ilias — Kodora
 
-P.S. — Si ce mail ne vous intéresse pas, ignorez-le simplement, je ne vous recontacterai pas.`
+P.S. — Si ce mail ne vous intéresse pas, ignorez-le simplement.`
 
   const scoreColor = score >= 70 ? "#16a34a" : score >= 45 ? "#d97706" : "#dc2626"
 
@@ -103,9 +116,10 @@ P.S. — Si ce mail ne vous intéresse pas, ignorez-le simplement, je ne vous re
         <tr>
           <td style="padding:32px">
             <p style="margin:0 0 16px;color:#1e293b;font-size:15px;line-height:1.6">Bonjour ${prenom},</p>
-            <p style="margin:0 0 24px;color:#334155;font-size:15px;line-height:1.6">
+            <p style="margin:0 0 ${preuve ? "12px" : "24px"};color:#334155;font-size:15px;line-height:1.6">
               J'ai fait un audit rapide de la présence en ligne de <strong>${nom}</strong> ce matin.
             </p>
+            ${preuve ? `<p style="margin:0 0 24px;color:#334155;font-size:15px;line-height:1.6">${preuve.trim()}</p>` : ""}
             <!-- Score box -->
             <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:24px">
               <tr>
@@ -124,7 +138,7 @@ P.S. — Si ce mail ne vous intéresse pas, ignorez-le simplement, je ne vous re
                 <td align="center">
                   <a href="${auditUrl}" target="_blank"
                     style="display:inline-block;background:#2563eb;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:6px;letter-spacing:-0.2px">
-                    Voir mon rapport complet →
+                    Voir les ${nbProblemes} points à corriger →
                   </a>
                 </td>
               </tr>
@@ -148,7 +162,7 @@ P.S. — Si ce mail ne vous intéresse pas, ignorez-le simplement, je ne vous re
         <tr>
           <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 32px">
             <p style="margin:0;color:#94a3b8;font-size:11px;line-height:1.6">
-              P.S. — Si ce mail ne vous intéresse pas, ignorez-le simplement, je ne vous recontacterai pas.
+              P.S. — Si ce mail ne vous intéresse pas, ignorez-le simplement.
             </p>
           </td>
         </tr>
@@ -170,9 +184,11 @@ export function auditWarmFollowUpTemplate(
     objet: "Une question sur votre audit ?",
     corps: `Bonjour ${prenom},
 
-J'ai vu que vous avez consulté votre audit. Y a-t-il un point que vous souhaitez clarifier ou une question sur les résultats ?
+Vous avez jeté un œil à votre audit — merci. Le point le plus rentable à corriger en premier dépend de votre situation : je peux vous dire lequel attaquer en deux lignes si vous me répondez.
 
-Le rapport est toujours accessible ici : ${auditUrl}
+Et si vous voulez qu'on s'en occupe, on corrige l'ensemble en 7 jours (dès 299 €).
+
+Le rapport reste accessible ici : ${auditUrl}
 
 Bonne journée,
 Ilias — Kodora
@@ -229,19 +245,22 @@ export function staticEmailTemplate(
   nom: string,
   secteur: string,
   flags: DiagnosticFlag[],
-  avis?: number | null
+  avis?: number | null,
+  ville?: string | null
 ): { objet: string; corps: string } | null {
   const has = (f: string) => flags.some((fl) => fl === f || fl.startsWith(f))
   const avisText = avis && avis > 0 ? ` (vous avez ${avis} avis Google)` : ""
+  const prenom = nom.split(" ")[0]
+  const villeLabel = ville && ville.trim() ? ville.trim() : "votre région"
 
   let objet = ""
   let corps = ""
 
   if (has("AUCUN_SITE")) {
     objet = pick(OBJETS_SITE_ABSENT, nom)
-    corps = `Bonjour,
+    corps = `Bonjour ${prenom},
 
-Je cherchais des ${secteur} à ${avisText ? "Bruxelles" : "Bruxelles"} et je n'ai pas trouvé de site pour votre cabinet${avisText}.
+Je cherchais des ${secteur} à ${villeLabel} et je n'ai pas trouvé de site pour votre cabinet${avisText}.
 
 Beaucoup de clients potentiels cherchent en ligne avant d'appeler — sans site, ces demandes vont chez vos confrères.
 
@@ -257,7 +276,7 @@ Pour ne plus recevoir mes messages, répondez STOP.`
 
   } else if (has("SITE_INACCESSIBLE") || has("SITE_HS_")) {
     objet = pick(OBJETS_SITE_HS, nom)
-    corps = `Bonjour,
+    corps = `Bonjour ${prenom},
 
 J'ai voulu visiter votre site web mais il semble inaccessible en ce moment${avisText}.
 
@@ -273,7 +292,7 @@ Pour ne plus recevoir mes messages, répondez STOP.`
 
   } else if (has("PAS_MOBILE")) {
     objet = pick(OBJETS_MOBILE, nom)
-    corps = `Bonjour,
+    corps = `Bonjour ${prenom},
 
 J'ai regardé votre site depuis mon téléphone et il s'affiche mal — texte trop petit, boutons difficiles à cliquer${avisText}.
 
@@ -290,7 +309,7 @@ Pour ne plus recevoir mes messages, répondez STOP.`
   } else if (has("SITE_DATE_")) {
     const year = flags.find(f => f.startsWith("SITE_DATE_"))?.replace("SITE_DATE_", "") ?? "plusieurs années"
     objet = pick(OBJETS_DATE, nom)
-    corps = `Bonjour,
+    corps = `Bonjour ${prenom},
 
 J'ai regardé votre site — il date de ${year}${avisText}. Les attentes des visiteurs ont beaucoup changé depuis, et Google pénalise les sites anciens dans ses résultats.
 
@@ -306,7 +325,7 @@ Pour ne plus recevoir mes messages, répondez STOP.`
 
   } else if (has("SITE_LENT")) {
     objet = pick(OBJETS_LENT, nom)
-    corps = `Bonjour,
+    corps = `Bonjour ${prenom},
 
 J'ai testé votre site — il met plus de 4 secondes à charger${avisText}. Google considère qu'au-delà de 3 secondes, la moitié des visiteurs abandonnent.
 
@@ -327,7 +346,7 @@ Pour ne plus recevoir mes messages, répondez STOP.`
       "Un retour rapide sur votre site",
     ]
     objet = pick(objets, nom)
-    corps = `Bonjour,
+    corps = `Bonjour ${prenom},
 
 J'ai regardé votre présence en ligne et j'ai noté quelques points qui pourraient freiner vos contacts depuis le web${avisText}.
 

@@ -88,15 +88,17 @@ async function scheduleWarmFollowUp(
       subject: "Une question sur votre audit ?",
       textContent: `Bonjour ${prenom},
 
-J'ai vu que vous avez consulté votre audit. Y a-t-il un point que vous souhaitez clarifier ou une question sur les résultats ?
+Vous avez jeté un œil à votre audit — merci. Le point le plus rentable à corriger en premier dépend de votre situation : je peux vous dire lequel attaquer en deux lignes si vous me répondez.
 
-Le rapport est toujours accessible ici : ${baseUrl}${slug}
+Et si vous voulez qu'on s'en occupe, on corrige l'ensemble en 7 jours (dès 299 €).
+
+Le rapport reste accessible ici : ${baseUrl}${slug}
 
 Bonne journée,
 Ilias — Kodora
 
 P.S. Si vous n'êtes pas intéressé, ignorez simplement ce message.`,
-      scheduledAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      scheduledAt: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
       tags: ["relance-chaude"],
     }),
   })
