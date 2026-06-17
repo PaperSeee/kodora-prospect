@@ -50,13 +50,13 @@ export async function POST(req: NextRequest) {
         if (audit) {
           const auditUrl = `${baseUrl}${audit.publicSlug}`
           const problemes = JSON.parse(audit.problemesJson ?? "[]") as { titre: string }[]
-          const result = auditEmailTemplate(prospect.nom, audit.score, problemes.length || 3, auditUrl)
+          const result = auditEmailTemplate(prospect.nom, audit.score, problemes.length || 3, auditUrl, problemes[0]?.titre ?? null)
           objet = result.objet
           corps = result.corps
         } else {
           const diagData = prospect.diagnostic ? JSON.parse(prospect.diagnostic) : { flags: [] }
           const flags: DiagnosticFlag[] = diagData.flags ?? []
-          const tmpl = staticEmailTemplate(prospect.nom, prospect.secteur, flags, prospect.avis)
+          const tmpl = staticEmailTemplate(prospect.nom, prospect.secteur, flags, prospect.avis, prospect.ville)
           if (!tmpl) continue
           objet = tmpl.objet
           corps = tmpl.corps

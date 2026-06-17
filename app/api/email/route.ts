@@ -43,7 +43,8 @@ export async function POST(req: NextRequest) {
     const auditUrl = `${baseUrl}${audit.publicSlug}`
     const problemes = JSON.parse(audit.problemesJson ?? "[]") as { titre: string }[]
     const nbProblemes = problemes.length || 3
-    const { objet, corps, html } = auditEmailTemplate(prospect.nom, audit.score, nbProblemes, auditUrl)
+    const premierProbleme = problemes[0]?.titre ?? null
+    const { objet, corps, html } = auditEmailTemplate(prospect.nom, audit.score, nbProblemes, auditUrl, premierProbleme)
 
     await prisma.prospect.update({
       where: { id: prospectId },
@@ -97,13 +98,13 @@ Réponds UNIQUEMENT en JSON : {"objet": "...", "corps": "..."}`,
       if (!objet || !corps) return NextResponse.json({ error: "Aucun problème détecté" }, { status: 422 })
     } catch (err) {
       console.error("[email] Anthropic error, falling back to template:", err)
-      const tmpl = staticEmailTemplate(prospect.nom, prospect.secteur, flags, prospect.avis)
+      const tmpl = staticEmailTemplate(prospect.nom, prospect.secteur, flags, prospect.avis, prospect.ville)
       if (!tmpl) return NextResponse.json({ error: "Aucun problème détecté" }, { status: 422 })
       objet = tmpl.objet
       corps = tmpl.corps
     }
   } else {
-    const tmpl = staticEmailTemplate(prospect.nom, prospect.secteur, flags, prospect.avis)
+    const tmpl = staticEmailTemplate(prospect.nom, prospect.secteur, flags, prospect.avis, prospect.ville)
     if (!tmpl) return NextResponse.json({ error: "Aucun problème détecté" }, { status: 422 })
     objet = tmpl.objet
     corps = tmpl.corps
