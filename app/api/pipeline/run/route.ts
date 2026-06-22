@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sourceSecteur } from "@/lib/source-prospects"
+import { sendPipelineReport } from "@/lib/pipeline-report"
 import {
   SECTEURS_ROTATION,
   VILLE_PRINCIPALE,
@@ -168,6 +169,11 @@ export async function POST(req: NextRequest) {
       data: { finishedAt: new Date(), sourced, generated, sent, status: "done" },
     })
 
+    // Rapport récap par email (pas en dry-run, pour ne pas spammer en test).
+    if (!dryRun) {
+      await sendPipelineReport({ cap, sourced, generated, sent, status: "done" })
+    }
+
     return NextResponse.json({
       ok: true, dryRun, cap, alreadySentToday, remaining,
       sourced, generated, sent,
@@ -178,6 +184,7 @@ export async function POST(req: NextRequest) {
       where: { id: run.id },
       data: { finishedAt: new Date(), sourced, generated, sent, status: "error", error: String(err) },
     })
+    await sendPipelineReport({ cap, sourced, generated, sent, status: "error", error: String(err) })
     return NextResponse.json({ ok: false, error: String(err), sourced, generated, sent }, { status: 500 })
   }
 }
