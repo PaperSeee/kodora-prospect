@@ -3,8 +3,10 @@ import { prisma } from "@/lib/prisma"
 import { sourceSecteur } from "@/lib/source-prospects"
 import {
   SECTEURS_ROTATION,
-  VILLES_ROTATION,
+  VILLE_PRINCIPALE,
   MAX_PAR_SECTEUR,
+  SECTEURS_PAR_RUN,
+  DIAG_TIMEOUT_PIPELINE_MS,
   dailyCap,
   jitterDelay,
   RUN_TIME_BUDGET_MS,
@@ -80,16 +82,26 @@ export async function POST(req: NextRequest) {
   let sent = 0
 
   try {
-    // ── 2. SOURCING (léger : 1 secteur/run pour tenir dans le budget temps) ──
-    // Le diagnostic de chaque site est lent (timeout 10s). Sur Hobby, on source
-    // peu à chaque run ; le stock s'accumule jour après jour.
+    // ── 2. SOURCING — Bruxelles en priorité, plusieurs secteurs/run ──
+    // On aplatit la rotation en une seule liste et on prend SECTEURS_PAR_RUN
+    // secteurs différents chaque jour (fenêtre glissante). Diagnostic rapide
+    // (4s/site) pour caser plusieurs secteurs dans les 60s.
     const dayIndex = Math.floor(Date.now() / 86_400_000)
-    const secteurs = SECTEURS_ROTATION[dayIndex % SECTEURS_ROTATION.length]
-    const ville = VILLES_ROTATION[dayIndex % VILLES_ROTATION.length]
-    const secteurDuJour = secteurs[dayIndex % secteurs.length]
+    const tousSecteurs = SECTEURS_ROTATION.flat()
+    const secteursDuJour: string[] = []
+    for (let i = 0; i < SECTEURS_PAR_RUN; i++) {
+      secteursDuJour.push(tousSecteurs[(dayIndex * SECTEURS_PAR_RUN + i) % tousSecteurs.length])
+    }
 
-    if (timeLeft() > 25_000) {
-      sourced += await sourceSecteur(secteurDuJour, ville, MAX_PAR_SECTEUR)
+    for (const secteur of secteursDuJour) {
+      if (timeLeft() < 20_000) break // garde du temps pour générer + envoyer
+      sourced += await sourceSecteur(
+        secteur,
+        VILLE_PRINCIPALE,
+        MAX_PAR_SECTEUR,
+        undefined,
+        DIAG_TIMEOUT_PIPELINE_MS,
+      )
     }
 
     // ── 3. GÉNÉRATION des emails manquants (paquets de 10) ──

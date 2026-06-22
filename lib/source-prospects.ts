@@ -73,7 +73,8 @@ export async function sourceSecteur(
   secteur: string,
   ville: string,
   maxParSecteur: number,
-  onProgress?: (msg: string) => void
+  onProgress?: (msg: string) => void,
+  diagTimeoutMs = 10000
 ): Promise<number> {
   let prospects: PlaceResult[] = []
 
@@ -107,7 +108,7 @@ export async function sourceSecteur(
       : false
     const siteWebReel = estPlateforme ? undefined : p.siteWeb
 
-    const diag = await diagnoseSite(siteWebReel)
+    const diag = await diagnoseSite(siteWebReel, diagTimeoutMs)
 
     const { extractEmailFromSite } = await import("@/lib/extract-email")
     let emailTrouve: string | null = p.email ?? null

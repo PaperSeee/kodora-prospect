@@ -12,14 +12,17 @@ export interface DiagnosticResult {
   statusCode?: number
 }
 
-export async function diagnoseSite(siteWeb?: string | null): Promise<DiagnosticResult> {
+export async function diagnoseSite(
+  siteWeb?: string | null,
+  timeoutMs = 10000,
+): Promise<DiagnosticResult> {
   if (!siteWeb) return { flags: ["AUCUN_SITE"] }
 
   const url = siteWeb.startsWith("http") ? siteWeb : `https://${siteWeb}`
   const flags: DiagnosticFlag[] = []
 
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 10000)
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
   const start = Date.now()
 
   try {

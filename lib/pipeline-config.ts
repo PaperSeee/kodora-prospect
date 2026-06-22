@@ -15,11 +15,18 @@ export const SECTEURS_ROTATION: string[][] = [
   ["institut de beauté", "menuisier", "électricien"],
 ]
 
-// Villes ciblées (rotation simple aussi).
-export const VILLES_ROTATION = ["Bruxelles", "Liège", "Namur", "Charleroi", "Gand", "Anvers"]
+// Ville prioritaire : Bruxelles (plus gros marché). Le sourcing reste concentré ici.
+export const VILLE_PRINCIPALE = "Bruxelles"
 
 // Nb de prospects sourcés par secteur à chaque run.
-export const MAX_PAR_SECTEUR = 12
+export const MAX_PAR_SECTEUR = 10
+
+// Nb de secteurs sourcés à chaque run (limité par le budget temps Hobby 60s).
+export const SECTEURS_PAR_RUN = 2
+
+// Timeout de diagnostic par site pendant le pipeline auto (court, pour tenir
+// dans les 60s). La route SSE manuelle garde le défaut plus généreux (10s).
+export const DIAG_TIMEOUT_PIPELINE_MS = 4000
 
 // ── RAMP D'ENVOI ──
 // Plafond d'emails envoyés par jour, qui augmente avec l'âge du programme.
