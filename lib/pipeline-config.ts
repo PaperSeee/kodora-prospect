@@ -43,28 +43,31 @@ export const COMMUNES = [
 // Nb de prospects sourcés par secteur à chaque run.
 export const MAX_PAR_SECTEUR = 10
 
-// Objectif de NOUVEAUX prospects à sourcer par run. Le pipeline enchaîne les
-// secteurs (en cherchant ailleurs) jusqu'à atteindre cet objectif — ou jusqu'à
-// épuiser les secteurs / le budget temps. Évite de tomber sous le quota d'envoi.
-export const OBJECTIF_SOURCING = 20
+// Objectif de NOUVEAUX prospects à sourcer par run : on vise à reconstituer le
+// stock pour couvrir le plafond d'envoi du jour (+ une petite marge). Calculé
+// dynamiquement depuis le cap du ramp — voir objectifSourcing().
+export function objectifSourcing(capDuJour: number): number {
+  return capDuJour + 10 // marge pour absorber doublons / prospects sans email
+}
 
 // Nb max de tentatives (secteur × commune) en un run, garde-fou si tout est
-// quasi vide. Borné aussi par le budget temps (60s Hobby) de toute façon.
-export const MAX_TENTATIVES_PAR_RUN = 12
+// quasi vide. Généreux car on vise jusqu'à ~50 prospects sur plusieurs communes.
+// Borné de toute façon par le budget temps (60s Hobby).
+export const MAX_TENTATIVES_PAR_RUN = 30
 
 // Timeout de diagnostic par site pendant le pipeline auto (court, pour tenir
 // dans les 60s). La route SSE manuelle garde le défaut plus généreux (10s).
 export const DIAG_TIMEOUT_PIPELINE_MS = 4000
 
 // ── RAMP D'ENVOI ──
-// Plafond d'emails envoyés par jour, qui augmente avec l'âge du programme.
-// jour 1-7 : 20  /  semaine 2 : 35  /  semaine 3 : 55  /  semaine 4 : 75  /  ensuite : 90 (max)
+// Plafond d'emails envoyés par jour, qui augmente AUTOMATIQUEMENT avec l'âge du
+// programme (warm-up). Objectif final : 50/jour.
+// jour 1-7 : 20  /  semaine 2 : 30  /  semaine 3 : 40  /  ensuite : 50 (max)
 const RAMP: { afterDays: number; cap: number }[] = [
   { afterDays: 0, cap: 20 },
-  { afterDays: 7, cap: 35 },
-  { afterDays: 14, cap: 55 },
-  { afterDays: 21, cap: 75 },
-  { afterDays: 28, cap: 90 },
+  { afterDays: 7, cap: 30 },
+  { afterDays: 14, cap: 40 },
+  { afterDays: 21, cap: 50 },
 ]
 
 // Plafond du jour, calculé d'après le nombre de jours depuis le 1er run.

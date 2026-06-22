@@ -86,10 +86,12 @@ de délivrabilité :
 | Période        | Plafond / jour |
 |----------------|----------------|
 | Jours 1-7      | 20             |
-| Semaine 2      | 35             |
-| Semaine 3      | 55             |
-| Semaine 4      | 75             |
-| Ensuite        | 90 (max)       |
+| Semaine 2      | 30             |
+| Semaine 3      | 40             |
+| Ensuite        | 50 (max)       |
+
+Le sourcing s'aligne automatiquement sur ce plafond (`objectifSourcing(cap)`),
+en ratissant les communes bruxelloises (`COMMUNES`) jusqu'à reconstituer le stock.
 
 > ⚠️ **Ne pas désactiver le ramp.** 100 cold emails/jour depuis un domaine neuf
 > = spam + blacklist + suspension Brevo. Le plafond protège ta délivrabilité.

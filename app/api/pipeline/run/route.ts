@@ -6,7 +6,7 @@ import {
   SECTEURS_ROTATION,
   COMMUNES,
   MAX_PAR_SECTEUR,
-  OBJECTIF_SOURCING,
+  objectifSourcing,
   MAX_TENTATIVES_PAR_RUN,
   DIAG_TIMEOUT_PIPELINE_MS,
   dailyCap,
@@ -93,13 +93,16 @@ export async function POST(req: NextRequest) {
     const dayIndex = Math.floor(Date.now() / 86_400_000)
     const tousSecteurs = SECTEURS_ROTATION.flat()
     const startSecteur = dayIndex % tousSecteurs.length
+    // Objectif aligné sur le plafond d'envoi du jour : on source assez pour
+    // alimenter le cap (le sourcing monte donc tout seul avec le ramp).
+    const objectif = objectifSourcing(cap)
 
     let tentatives = 0
     for (const commune of COMMUNES) {
-      if (sourced >= OBJECTIF_SOURCING || timeLeft() < 20_000) break
+      if (sourced >= objectif || timeLeft() < 20_000) break
 
       for (let i = 0; i < tousSecteurs.length; i++) {
-        if (sourced >= OBJECTIF_SOURCING) break
+        if (sourced >= objectif) break
         if (timeLeft() < 20_000) break
         if (tentatives >= MAX_TENTATIVES_PAR_RUN) break
 
