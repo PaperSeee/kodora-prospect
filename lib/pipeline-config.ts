@@ -21,8 +21,13 @@ export const VILLE_PRINCIPALE = "Bruxelles"
 // Nb de prospects sourcés par secteur à chaque run.
 export const MAX_PAR_SECTEUR = 10
 
-// Nb de secteurs sourcés à chaque run (limité par le budget temps Hobby 60s).
-export const SECTEURS_PAR_RUN = 2
+// Objectif de NOUVEAUX prospects à sourcer par run. Le pipeline enchaîne les
+// secteurs (en cherchant ailleurs) jusqu'à atteindre cet objectif — ou jusqu'à
+// épuiser les secteurs / le budget temps. Évite de tomber sous le quota d'envoi.
+export const OBJECTIF_SOURCING = 20
+
+// Nb max de secteurs tentés en un run (garde-fou si tous sont quasi vides).
+export const MAX_SECTEURS_PAR_RUN = 8
 
 // Timeout de diagnostic par site pendant le pipeline auto (court, pour tenir
 // dans les 60s). La route SSE manuelle garde le défaut plus généreux (10s).

@@ -6,7 +6,8 @@ import {
   SECTEURS_ROTATION,
   VILLE_PRINCIPALE,
   MAX_PAR_SECTEUR,
-  SECTEURS_PAR_RUN,
+  OBJECTIF_SOURCING,
+  MAX_SECTEURS_PAR_RUN,
   DIAG_TIMEOUT_PIPELINE_MS,
   dailyCap,
   jitterDelay,
@@ -83,19 +84,19 @@ export async function POST(req: NextRequest) {
   let sent = 0
 
   try {
-    // ── 2. SOURCING — Bruxelles en priorité, plusieurs secteurs/run ──
-    // On aplatit la rotation en une seule liste et on prend SECTEURS_PAR_RUN
-    // secteurs différents chaque jour (fenêtre glissante). Diagnostic rapide
-    // (4s/site) pour caser plusieurs secteurs dans les 60s.
+    // ── 2. SOURCING — Bruxelles, on enchaîne les secteurs jusqu'à l'objectif ──
+    // On part d'un secteur différent chaque jour (fenêtre glissante), puis on
+    // continue secteur après secteur TANT QUE l'objectif de nouveaux prospects
+    // n'est pas atteint (cherche "ailleurs" si un secteur est vide/déjà sourcé).
+    // Bornes : MAX_SECTEURS_PAR_RUN et le budget temps (60s Hobby).
     const dayIndex = Math.floor(Date.now() / 86_400_000)
     const tousSecteurs = SECTEURS_ROTATION.flat()
-    const secteursDuJour: string[] = []
-    for (let i = 0; i < SECTEURS_PAR_RUN; i++) {
-      secteursDuJour.push(tousSecteurs[(dayIndex * SECTEURS_PAR_RUN + i) % tousSecteurs.length])
-    }
+    const startIdx = dayIndex % tousSecteurs.length
 
-    for (const secteur of secteursDuJour) {
-      if (timeLeft() < 20_000) break // garde du temps pour générer + envoyer
+    for (let i = 0; i < MAX_SECTEURS_PAR_RUN; i++) {
+      if (sourced >= OBJECTIF_SOURCING) break // objectif atteint
+      if (timeLeft() < 20_000) break          // garde du temps pour générer + envoyer
+      const secteur = tousSecteurs[(startIdx + i) % tousSecteurs.length]
       sourced += await sourceSecteur(
         secteur,
         VILLE_PRINCIPALE,
