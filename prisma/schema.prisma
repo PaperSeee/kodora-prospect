@@ -51,6 +51,20 @@ model EarlyAccessSignup {
   createdAt DateTime @default(now())
 }
 
+// Trace chaque exécution du pipeline auto (source → génère → envoie).
+// Sert aussi à compter les envois du jour pour respecter le plafond / ramp.
+model PipelineRun {
+  id          Int      @id @default(autoincrement())
+  startedAt   DateTime @default(now())
+  finishedAt  DateTime?
+  sourced     Int      @default(0)  // nouveaux prospects sourcés
+  generated   Int      @default(0)  // emails générés
+  sent        Int      @default(0)  // emails réellement envoyés
+  capUsed     Int      @default(0)  // plafond appliqué ce jour-là
+  status      String   @default("running") // running | done | error
+  error       String?
+}
+
 model Audit {
   id                   String    @id @default(cuid())
   prospectId           Int
