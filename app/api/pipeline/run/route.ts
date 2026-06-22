@@ -4,10 +4,10 @@ import { sourceSecteur } from "@/lib/source-prospects"
 import { sendPipelineReport } from "@/lib/pipeline-report"
 import {
   SECTEURS_ROTATION,
-  VILLE_PRINCIPALE,
+  COMMUNES,
   MAX_PAR_SECTEUR,
   OBJECTIF_SOURCING,
-  MAX_SECTEURS_PAR_RUN,
+  MAX_TENTATIVES_PAR_RUN,
   DIAG_TIMEOUT_PIPELINE_MS,
   dailyCap,
   jitterDelay,
@@ -84,26 +84,37 @@ export async function POST(req: NextRequest) {
   let sent = 0
 
   try {
-    // ── 2. SOURCING — Bruxelles, on enchaîne les secteurs jusqu'à l'objectif ──
-    // On part d'un secteur différent chaque jour (fenêtre glissante), puis on
-    // continue secteur après secteur TANT QUE l'objectif de nouveaux prospects
-    // n'est pas atteint (cherche "ailleurs" si un secteur est vide/déjà sourcé).
-    // Bornes : MAX_SECTEURS_PAR_RUN et le budget temps (60s Hobby).
+    // ── 2. SOURCING — Bruxelles d'abord, puis les communes jusqu'à l'objectif ──
+    // On parcourt les combinaisons commune × secteur : pour chaque commune
+    // (Bruxelles, Ixelles, Schaerbeek…), on essaie les secteurs. Dès que la
+    // commune est épuisée (que des doublons), on passe à la suivante. On s'arrête
+    // quand l'objectif de NOUVEAUX prospects est atteint, ou MAX_TENTATIVES, ou
+    // le budget temps (60s Hobby). Le point de départ tourne chaque jour.
     const dayIndex = Math.floor(Date.now() / 86_400_000)
     const tousSecteurs = SECTEURS_ROTATION.flat()
-    const startIdx = dayIndex % tousSecteurs.length
+    const startSecteur = dayIndex % tousSecteurs.length
 
-    for (let i = 0; i < MAX_SECTEURS_PAR_RUN; i++) {
-      if (sourced >= OBJECTIF_SOURCING) break // objectif atteint
-      if (timeLeft() < 20_000) break          // garde du temps pour générer + envoyer
-      const secteur = tousSecteurs[(startIdx + i) % tousSecteurs.length]
-      sourced += await sourceSecteur(
-        secteur,
-        VILLE_PRINCIPALE,
-        MAX_PAR_SECTEUR,
-        undefined,
-        DIAG_TIMEOUT_PIPELINE_MS,
-      )
+    let tentatives = 0
+    for (const commune of COMMUNES) {
+      if (sourced >= OBJECTIF_SOURCING || timeLeft() < 20_000) break
+
+      for (let i = 0; i < tousSecteurs.length; i++) {
+        if (sourced >= OBJECTIF_SOURCING) break
+        if (timeLeft() < 20_000) break
+        if (tentatives >= MAX_TENTATIVES_PAR_RUN) break
+
+        const secteur = tousSecteurs[(startSecteur + i) % tousSecteurs.length]
+        tentatives++
+        sourced += await sourceSecteur(
+          secteur,
+          commune,
+          MAX_PAR_SECTEUR,
+          undefined,
+          DIAG_TIMEOUT_PIPELINE_MS,
+        )
+      }
+
+      if (tentatives >= MAX_TENTATIVES_PAR_RUN) break
     }
 
     // ── 3. GÉNÉRATION des emails manquants (paquets de 10) ──

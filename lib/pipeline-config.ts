@@ -15,8 +15,30 @@ export const SECTEURS_ROTATION: string[][] = [
   ["institut de beauté", "menuisier", "électricien"],
 ]
 
-// Ville prioritaire : Bruxelles (plus gros marché). Le sourcing reste concentré ici.
-export const VILLE_PRINCIPALE = "Bruxelles"
+// Communes ciblées, par ordre de priorité. On commence par Bruxelles (plus gros
+// marché) ; quand un secteur y est épuisé, le pipeline passe automatiquement à
+// la commune suivante (Ixelles, Schaerbeek, Forest…) pour trouver du nouveau.
+export const COMMUNES = [
+  "Bruxelles",
+  "Ixelles",
+  "Schaerbeek",
+  "Anderlecht",
+  "Molenbeek-Saint-Jean",
+  "Saint-Gilles",
+  "Uccle",
+  "Forest",
+  "Etterbeek",
+  "Woluwe-Saint-Lambert",
+  "Woluwe-Saint-Pierre",
+  "Jette",
+  "Auderghem",
+  "Watermael-Boitsfort",
+  "Saint-Josse-ten-Noode",
+  "Koekelberg",
+  "Berchem-Sainte-Agathe",
+  "Ganshoren",
+  "Evere",
+]
 
 // Nb de prospects sourcés par secteur à chaque run.
 export const MAX_PAR_SECTEUR = 10
@@ -26,8 +48,9 @@ export const MAX_PAR_SECTEUR = 10
 // épuiser les secteurs / le budget temps. Évite de tomber sous le quota d'envoi.
 export const OBJECTIF_SOURCING = 20
 
-// Nb max de secteurs tentés en un run (garde-fou si tous sont quasi vides).
-export const MAX_SECTEURS_PAR_RUN = 8
+// Nb max de tentatives (secteur × commune) en un run, garde-fou si tout est
+// quasi vide. Borné aussi par le budget temps (60s Hobby) de toute façon.
+export const MAX_TENTATIVES_PAR_RUN = 12
 
 // Timeout de diagnostic par site pendant le pipeline auto (court, pour tenir
 // dans les 60s). La route SSE manuelle garde le défaut plus généreux (10s).
