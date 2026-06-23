@@ -98,13 +98,16 @@ export async function POST(req: NextRequest) {
     // alimenter le cap (le sourcing monte donc tout seul avec le ramp).
     const objectif = objectifSourcing(cap)
 
+    // On réserve du temps pour la génération + l'envoi (prioritaires sur le
+    // sourcing) : on arrête de sourcer quand il reste moins de SOURCING_STOP_MS.
+    const SOURCING_STOP_MS = 35_000
     let tentatives = 0
     for (const commune of COMMUNES) {
-      if (sourced >= objectif || timeLeft() < 20_000) break
+      if (sourced >= objectif || timeLeft() < SOURCING_STOP_MS) break
 
       for (let i = 0; i < tousSecteurs.length; i++) {
         if (sourced >= objectif) break
-        if (timeLeft() < 20_000) break
+        if (timeLeft() < SOURCING_STOP_MS) break
         if (tentatives >= MAX_TENTATIVES_PAR_RUN) break
 
         const secteur = tousSecteurs[(startSecteur + i) % tousSecteurs.length]
@@ -122,8 +125,10 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 3. GÉNÉRATION des emails manquants (appel direct, pas de fetch interne) ──
-    while (timeLeft() > 15_000) {
-      const count = await generateEmailBatch({ take: 10 })
+    // On garde une marge pour l'envoi : on arrête de générer quand il reste
+    // moins de 10s. Petits lots (5) pour réévaluer le temps souvent.
+    while (timeLeft() > 10_000) {
+      const count = await generateEmailBatch({ take: 5 })
       generated += count
       if (!count) break // plus rien à générer
       if (generated >= remaining + 10) break
