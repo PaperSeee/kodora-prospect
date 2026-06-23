@@ -79,14 +79,15 @@ export function dailyCap(daysSinceStart: number): number {
   return cap
 }
 
-// Délai aléatoire (ms) entre deux envois — imite un humain, évite les bursts.
-// Court par défaut pour tenir dans la limite 60s de Vercel Hobby.
-// (Sur un cron qui tourne plusieurs fois/jour en Pro, on pourrait l'allonger.)
+// Délai aléatoire (ms) entre deux envois — petit jitter pour éviter les bursts
+// parfaitement réguliers, mais court pour tenir dans les 45s de budget Hobby :
+// ~0,3-0,7s/email → permet ~50 envois par run. Brevo gère ce rythme sans souci.
 export function jitterDelay(): number {
-  // entre 1,5s et 4s
-  return 1500 + Math.floor(Math.random() * 2500)
+  // entre 0,3s et 0,7s
+  return 300 + Math.floor(Math.random() * 400)
 }
 
 // Budget temps (ms) max d'un run, pour rester sous la limite Vercel Hobby (60s).
+// 52s laisse de la marge ; avec ~0,3-0,7s/email ça couvre largement 50 envois.
 // On arrête proprement l'envoi avant le timeout — le reste partira au prochain run.
-export const RUN_TIME_BUDGET_MS = 45_000
+export const RUN_TIME_BUDGET_MS = 52_000
