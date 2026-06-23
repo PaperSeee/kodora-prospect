@@ -85,56 +85,22 @@ export async function POST(req: NextRequest) {
   let sent = 0
 
   try {
-    // ── 2. SOURCING — Bruxelles d'abord, puis les communes jusqu'à l'objectif ──
-    // On parcourt les combinaisons commune × secteur : pour chaque commune
-    // (Bruxelles, Ixelles, Schaerbeek…), on essaie les secteurs. Dès que la
-    // commune est épuisée (que des doublons), on passe à la suivante. On s'arrête
-    // quand l'objectif de NOUVEAUX prospects est atteint, ou MAX_TENTATIVES, ou
-    // le budget temps (60s Hobby). Le point de départ tourne chaque jour.
-    const dayIndex = Math.floor(Date.now() / 86_400_000)
-    const tousSecteurs = SECTEURS_ROTATION.flat()
-    const startSecteur = dayIndex % tousSecteurs.length
-    // Objectif aligné sur le plafond d'envoi du jour : on source assez pour
-    // alimenter le cap (le sourcing monte donc tout seul avec le ramp).
-    const objectif = objectifSourcing(cap)
+    // ORDRE PRIORITAIRE (budget 45s sur Hobby) :
+    //   1. GÉNÉRER les emails manquants depuis le stock déjà sourcé
+    //   2. ENVOYER ce qui est prêt  ← objectif n°1, ne doit jamais être sacrifié
+    //   3. SOURCER de nouveaux prospects pour demain, avec le temps restant
+    // (Avant, le sourcing passait en premier et mangeait tout le temps → sent:0.)
 
-    // On réserve du temps pour la génération + l'envoi (prioritaires sur le
-    // sourcing) : on arrête de sourcer quand il reste moins de SOURCING_STOP_MS.
-    const SOURCING_STOP_MS = 35_000
-    let tentatives = 0
-    for (const commune of COMMUNES) {
-      if (sourced >= objectif || timeLeft() < SOURCING_STOP_MS) break
-
-      for (let i = 0; i < tousSecteurs.length; i++) {
-        if (sourced >= objectif) break
-        if (timeLeft() < SOURCING_STOP_MS) break
-        if (tentatives >= MAX_TENTATIVES_PAR_RUN) break
-
-        const secteur = tousSecteurs[(startSecteur + i) % tousSecteurs.length]
-        tentatives++
-        sourced += await sourceSecteur(
-          secteur,
-          commune,
-          MAX_PAR_SECTEUR,
-          undefined,
-          DIAG_TIMEOUT_PIPELINE_MS,
-        )
-      }
-
-      if (tentatives >= MAX_TENTATIVES_PAR_RUN) break
-    }
-
-    // ── 3. GÉNÉRATION des emails manquants (appel direct, pas de fetch interne) ──
-    // On garde une marge pour l'envoi : on arrête de générer quand il reste
-    // moins de 10s. Petits lots (5) pour réévaluer le temps souvent.
-    while (timeLeft() > 10_000) {
+    // ── 1. GÉNÉRATION (rapide, depuis le stock existant) ──
+    // On limite à ce qu'il faut pour le cap, et on garde du temps pour l'envoi.
+    const aGenererMax = remaining + 5
+    while (timeLeft() > 25_000 && generated < aGenererMax) {
       const count = await generateEmailBatch({ take: 5 })
       generated += count
       if (!count) break // plus rien à générer
-      if (generated >= remaining + 10) break
     }
 
-    // ── 4. ENVOI plafonné + jitter, borné par le budget temps ──
+    // ── 2. ENVOI plafonné + jitter, borné par le budget temps ──
     if (!dryRun && remaining > 0) {
       const prospects = await prisma.prospect.findMany({
         where: { email: { not: null }, emailCorps: { not: null }, statut: "a_contacter" },
@@ -177,6 +143,38 @@ export async function POST(req: NextRequest) {
           await new Promise((r) => setTimeout(r, jitterDelay()))
         }
       }
+    }
+
+    // ── 3. SOURCING — avec le temps restant, pour alimenter les prochains runs ──
+    // Bruxelles d'abord, puis les communes (Ixelles, Schaerbeek…). Pour chaque
+    // commune on essaie les secteurs ; commune épuisée → on passe à la suivante.
+    // Point de départ tournant chaque jour. On s'arrête s'il reste < 8s.
+    const dayIndex = Math.floor(Date.now() / 86_400_000)
+    const tousSecteurs = SECTEURS_ROTATION.flat()
+    const startSecteur = dayIndex % tousSecteurs.length
+    const objectif = objectifSourcing(cap)
+
+    let tentatives = 0
+    for (const commune of COMMUNES) {
+      if (sourced >= objectif || timeLeft() < 8000) break
+
+      for (let i = 0; i < tousSecteurs.length; i++) {
+        if (sourced >= objectif) break
+        if (timeLeft() < 8000) break
+        if (tentatives >= MAX_TENTATIVES_PAR_RUN) break
+
+        const secteur = tousSecteurs[(startSecteur + i) % tousSecteurs.length]
+        tentatives++
+        sourced += await sourceSecteur(
+          secteur,
+          commune,
+          MAX_PAR_SECTEUR,
+          undefined,
+          DIAG_TIMEOUT_PIPELINE_MS,
+        )
+      }
+
+      if (tentatives >= MAX_TENTATIVES_PAR_RUN) break
     }
 
     await prisma.pipelineRun.update({
