@@ -29,6 +29,10 @@ export async function generateAudit(prospectId: number) {
   let scoreRaw = 50
 
   try {
+    // Timeout 8s : l'audit LokalSEO peut être lent. Sans ça, un seul site lent
+    // bloque tout le run et provoque un FUNCTION_INVOCATION_TIMEOUT sur Vercel.
+    const controller = new AbortController()
+    const t = setTimeout(() => controller.abort(), 8_000)
     const res = await fetch(`${lokalseoUrl}/api/audit`, {
       method: "POST",
       headers: {
@@ -40,13 +44,15 @@ export async function generateAudit(prospectId: number) {
         ville: prospect.ville,
         siteWeb: prospect.siteWeb || undefined,
       }),
+      signal: controller.signal,
     })
+    clearTimeout(t)
     if (res.ok) {
       rapportData = await res.json()
       scoreRaw = (rapportData?.scoreGlobal as number) ?? 50
     }
   } catch {
-    // LokalSEO down — fallback sur le score diagnostic existant
+    // LokalSEO down ou trop lent — fallback sur le score diagnostic existant
     scoreRaw = prospect.score > 0 ? 40 + Math.round(prospect.score * 0.3) : 45
   }
 

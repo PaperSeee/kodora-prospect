@@ -89,4 +89,4 @@ export function jitterDelay(): number {
 
 // Budget temps (ms) max d'un run, pour rester sous la limite Vercel Hobby (60s).
 // On arrête proprement l'envoi avant le timeout — le reste partira au prochain run.
-export const RUN_TIME_BUDGET_MS = 50_000
+export const RUN_TIME_BUDGET_MS = 45_000
