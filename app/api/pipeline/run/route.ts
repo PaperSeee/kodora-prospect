@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sourceSecteur } from "@/lib/source-prospects"
+import { generateEmailBatch } from "@/lib/generate-emails"
 import { sendPipelineReport } from "@/lib/pipeline-report"
 import {
   SECTEURS_ROTATION,
@@ -120,17 +121,11 @@ export async function POST(req: NextRequest) {
       if (tentatives >= MAX_TENTATIVES_PAR_RUN) break
     }
 
-    // ── 3. GÉNÉRATION des emails manquants (paquets de 10) ──
-    const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"
+    // ── 3. GÉNÉRATION des emails manquants (appel direct, pas de fetch interne) ──
     while (timeLeft() > 15_000) {
-      const res = await fetch(`${base}/api/email/batch`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      })
-      const data = await res.json().catch(() => ({ count: 0 }))
-      generated += data.count ?? 0
-      if (!data.count) break
+      const count = await generateEmailBatch({ take: 10 })
+      generated += count
+      if (!count) break // plus rien à générer
       if (generated >= remaining + 10) break
     }
 
