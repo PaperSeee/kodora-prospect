@@ -1,30 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { sourceSecteur } from "@/lib/source-prospects"
-import { generateEmailBatch } from "@/lib/generate-emails"
 import { sendPipelineReport } from "@/lib/pipeline-report"
-import {
-  SECTEURS_ROTATION,
-  COMMUNES,
-  MAX_PAR_SECTEUR,
-  objectifSourcing,
-  MAX_TENTATIVES_PAR_RUN,
-  DIAG_TIMEOUT_PIPELINE_MS,
-  dailyCap,
-  jitterDelay,
-  RUN_TIME_BUDGET_MS,
-} from "@/lib/pipeline-config"
+import { dailyCap, jitterDelay, RUN_TIME_BUDGET_MS } from "@/lib/pipeline-config"
 
-// Orchestrateur du pipeline auto : source → génère → envoie (plafonné + ramp).
-// Appelé 1×/jour par le cron Vercel (voir vercel.json), ou manuellement.
-//
-// Garde-fous :
-//  - plafond d'envoi quotidien progressif (warm-up) → lib/pipeline-config.ts
-//  - délai aléatoire entre chaque envoi (pas de burst)
-//  - ne dépasse jamais le cap, même si appelé plusieurs fois dans la journée
-//  - budget temps : s'arrête proprement avant la limite 60s de Vercel Hobby
-//
-// Vercel Hobby : maxDuration plafonné à 60s. On reste dessous via RUN_TIME_BUDGET_MS.
+// ── CRON QUOTIDIEN : ENVOI SEUL ──
+// Le sourcing + la génération se font à la main via le bouton "Préparer un gros
+// stock" (route /api/pipeline/stock), qui n'a pas la limite 60s. Ici on fait
+// UNIQUEMENT l'envoi du lot du jour depuis le stock prêt → rapide, jamais de
+// timeout. Plafond progressif (ramp) + délai aléatoire + rapport mail.
 export const maxDuration = 60
 
 function startOfToday(): Date {
@@ -62,10 +45,9 @@ export async function POST(req: NextRequest) {
 
   const startedMs = Date.now()
   const timeLeft = () => RUN_TIME_BUDGET_MS - (Date.now() - startedMs)
-
   const dryRun = req.nextUrl.searchParams.get("dry") === "1"
 
-  // ── 1. Plafond du jour (ramp) ──
+  // ── Plafond du jour (ramp) ──
   const firstRun = await prisma.pipelineRun.findFirst({ orderBy: { startedAt: "asc" } })
   const daysSinceStart = firstRun
     ? Math.floor((Date.now() - firstRun.startedAt.getTime()) / 86_400_000)
@@ -80,27 +62,9 @@ export async function POST(req: NextRequest) {
 
   const run = await prisma.pipelineRun.create({ data: { capUsed: cap, status: "running" } })
 
-  let sourced = 0
-  let generated = 0
   let sent = 0
 
   try {
-    // ORDRE PRIORITAIRE (budget 45s sur Hobby) :
-    //   1. GÉNÉRER les emails manquants depuis le stock déjà sourcé
-    //   2. ENVOYER ce qui est prêt  ← objectif n°1, ne doit jamais être sacrifié
-    //   3. SOURCER de nouveaux prospects pour demain, avec le temps restant
-    // (Avant, le sourcing passait en premier et mangeait tout le temps → sent:0.)
-
-    // ── 1. GÉNÉRATION (rapide, depuis le stock existant) ──
-    // On limite à ce qu'il faut pour le cap, et on garde du temps pour l'envoi.
-    const aGenererMax = remaining + 5
-    while (timeLeft() > 25_000 && generated < aGenererMax) {
-      const count = await generateEmailBatch({ take: 5 })
-      generated += count
-      if (!count) break // plus rien à générer
-    }
-
-    // ── 2. ENVOI plafonné + jitter, borné par le budget temps ──
     if (!dryRun && remaining > 0) {
       const prospects = await prisma.prospect.findMany({
         where: { email: { not: null }, emailCorps: { not: null }, statut: "a_contacter" },
@@ -109,7 +73,7 @@ export async function POST(req: NextRequest) {
       })
 
       for (const prospect of prospects) {
-        if (timeLeft() < 6000) break // garde une marge avant le timeout
+        if (timeLeft() < 6000) break // marge avant le timeout
 
         try {
           const res = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -145,64 +109,31 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── 3. SOURCING — avec le temps restant, pour alimenter les prochains runs ──
-    // Bruxelles d'abord, puis les communes (Ixelles, Schaerbeek…). Pour chaque
-    // commune on essaie les secteurs ; commune épuisée → on passe à la suivante.
-    // Point de départ tournant chaque jour. On s'arrête s'il reste < 8s.
-    const dayIndex = Math.floor(Date.now() / 86_400_000)
-    const tousSecteurs = SECTEURS_ROTATION.flat()
-    const startSecteur = dayIndex % tousSecteurs.length
-    const objectif = objectifSourcing(cap)
-
-    let tentatives = 0
-    for (const commune of COMMUNES) {
-      if (sourced >= objectif || timeLeft() < 8000) break
-
-      for (let i = 0; i < tousSecteurs.length; i++) {
-        if (sourced >= objectif) break
-        if (timeLeft() < 8000) break
-        if (tentatives >= MAX_TENTATIVES_PAR_RUN) break
-
-        const secteur = tousSecteurs[(startSecteur + i) % tousSecteurs.length]
-        tentatives++
-        sourced += await sourceSecteur(
-          secteur,
-          commune,
-          MAX_PAR_SECTEUR,
-          undefined,
-          DIAG_TIMEOUT_PIPELINE_MS,
-        )
-      }
-
-      if (tentatives >= MAX_TENTATIVES_PAR_RUN) break
-    }
-
     await prisma.pipelineRun.update({
       where: { id: run.id },
-      data: { finishedAt: new Date(), sourced, generated, sent, status: "done" },
+      data: { finishedAt: new Date(), sent, status: "done" },
     })
 
-    // Rapport récap par email (pas en dry-run, pour ne pas spammer en test).
+    // Rapport récap par email (pas en dry-run).
     if (!dryRun) {
-      await sendPipelineReport({ cap, sourced, generated, sent, status: "done" })
+      await sendPipelineReport({ cap, sourced: 0, generated: 0, sent, status: "done" })
     }
 
     return NextResponse.json({
-      ok: true, dryRun, cap, alreadySentToday, remaining,
-      sourced, generated, sent,
-      note: sent < remaining ? "Budget temps atteint — le reste partira au prochain run." : undefined,
+      ok: true, dryRun, cap, alreadySentToday, remaining, sent,
+      note: sent < remaining ? "Stock épuisé ou budget temps atteint — prépare un gros stock via le bouton." : undefined,
     })
   } catch (err) {
     await prisma.pipelineRun.update({
       where: { id: run.id },
-      data: { finishedAt: new Date(), sourced, generated, sent, status: "error", error: String(err) },
+      data: { finishedAt: new Date(), sent, status: "error", error: String(err) },
     })
-    await sendPipelineReport({ cap, sourced, generated, sent, status: "error", error: String(err) })
-    return NextResponse.json({ ok: false, error: String(err), sourced, generated, sent }, { status: 500 })
+    await sendPipelineReport({ cap, sourced: 0, generated: 0, sent, status: "error", error: String(err) })
+    return NextResponse.json({ ok: false, error: String(err), sent }, { status: 500 })
   }
 }
 
-// Permet aussi le déclenchement par GET (cron Vercel envoie un GET par défaut).
+// Le cron Vercel envoie un GET par défaut.
 export async function GET(req: NextRequest) {
   return POST(req)
 }

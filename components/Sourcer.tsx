@@ -24,6 +24,45 @@ export function Sourcer() {
   const [openCat, setOpenCat] = useState<string | null>(null)
   const [searchSecteur, setSearchSecteur] = useState("")
 
+  // ── Bouton "Préparer un gros stock" (auto multi-communes + génération) ──
+  const [stockObjectif, setStockObjectif] = useState(100)
+  const [stockRunning, setStockRunning] = useState(false)
+  const [stockLog, setStockLog] = useState<string[]>([])
+  const [stockDone, setStockDone] = useState<{ sourced: number; generated: number; stockPret: number } | null>(null)
+
+  const lancerStock = async () => {
+    setStockRunning(true)
+    setStockDone(null)
+    setStockLog([])
+
+    const res = await fetch("/api/pipeline/stock", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ objectif: stockObjectif }),
+    })
+
+    const reader = res.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ""
+
+    while (true) {
+      const { done: streamDone, value } = await reader.read()
+      if (streamDone) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split("\n\n")
+      buffer = lines.pop() ?? ""
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue
+        try {
+          const p = JSON.parse(line.slice(6))
+          if (p.type === "done") setStockDone({ sourced: p.sourced, generated: p.generated, stockPret: p.stockPret })
+          else if (p.message) setStockLog((prev) => [...prev, p.message])
+        } catch {}
+      }
+    }
+    setStockRunning(false)
+  }
+
   useEffect(() => {
     fetch("/api/secteurs")
       .then((r) => r.json())
@@ -83,6 +122,54 @@ export function Sourcer() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
+      {/* ── PRÉPARER UN GROS STOCK (1 clic, auto multi-communes + emails) ── */}
+      <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-5 space-y-3">
+        <div>
+          <h2 className="text-sm font-bold text-emerald-300">⚡ Préparer un gros stock (recommandé)</h2>
+          <p className="text-xs text-emerald-200/70 mt-1">
+            Source automatiquement à travers les communes (Bruxelles, Ixelles, Schaerbeek…)
+            ET génère les emails, jusqu'à atteindre l'objectif. À lancer ~1×/semaine —
+            ensuite le cron envoie tout seul chaque jour.
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex-1">
+            <label className="mb-1 block text-xs font-medium text-emerald-200/70">
+              Objectif : <span className="text-white font-semibold">{stockObjectif} prospects</span>
+            </label>
+            <input
+              type="range" min={20} max={300} step={20}
+              value={stockObjectif}
+              onChange={(e) => setStockObjectif(parseInt(e.target.value))}
+              disabled={stockRunning}
+              className="w-full accent-emerald-500"
+            />
+          </div>
+          <button
+            onClick={lancerStock}
+            disabled={stockRunning}
+            className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+          >
+            {stockRunning ? "Préparation en cours…" : `🚀 Préparer ${stockObjectif} prospects`}
+          </button>
+        </div>
+
+        {(stockLog.length > 0 || stockDone) && (
+          <div className="rounded-lg border border-emerald-700/40 bg-zinc-950 p-3">
+            <div className="max-h-48 overflow-y-auto space-y-0.5 font-mono text-xs text-zinc-400">
+              {stockLog.map((l, i) => <div key={i}>{l}</div>)}
+            </div>
+            {stockDone && (
+              <div className="mt-3 text-xs text-emerald-400 font-semibold">
+                ✅ Terminé — {stockDone.sourced} sourcés, {stockDone.generated} emails générés.
+                Stock prêt à envoyer : {stockDone.stockPret}.
+                <a href="/pipeline" className="ml-2 underline hover:text-emerald-300">Voir le pipeline →</a>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Encart RGPD */}
       <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
         ⚠️ <strong>Cold email uniquement.</strong> Volume modéré, opt-out "répondez STOP" inclus. Pas de WhatsApp/SMS à froid.

@@ -72,14 +72,20 @@ components/
 `lib/scraper-fallback.ts` est fragile par nature : il scrape Google Maps via les sélecteurs DOM de Playwright. Si Google modifie son HTML, les sélecteurs cassent.
 **C'est le seul fichier à corriger** en cas de panne du sourcing sans clé Google Places.
 
-## Pipeline auto (source → génère → envoie)
+## Pipeline (architecture en 2 temps)
 
-`POST /api/pipeline/run` enchaîne tout le flux en un appel, avec des garde-fous
-de délivrabilité :
+Sur Vercel Hobby (60s/fonction), tout faire dans un cron est trop serré. On
+sépare donc le **lent** (manuel, hebdo) du **rapide** (auto, quotidien) :
 
-1. **Source** des prospects (rotation secteurs + ville selon le jour) → `lib/source-prospects.ts`
-2. **Génère** les emails IA manquants (boucle `/api/email/batch`)
-3. **Envoie** via Brevo, **plafonné** par un ramp progressif + délai aléatoire entre envois
+### 1. Préparer le stock — manuel, ~1×/semaine (bouton sur `/sourcer`)
+`POST /api/pipeline/stock` (SSE) source à travers les communes ET génère les
+emails, jusqu'à un objectif (ex: 100). Lancé depuis le navigateur → pas de
+limite 60s. Bouton « ⚡ Préparer un gros stock » en haut de la page Sourcer.
+
+### 2. Envoyer — auto, quotidien (cron Vercel)
+`POST /api/pipeline/run` fait **uniquement l'envoi** du lot du jour depuis le
+stock prêt → rapide, jamais de timeout. Plafonné par un ramp + délai aléatoire,
++ rapport mail à chaque run.
 
 ### Ramp d'envoi (warm-up) — `lib/pipeline-config.ts`
 
@@ -90,20 +96,19 @@ de délivrabilité :
 | Semaine 3      | 40             |
 | Ensuite        | 50 (max)       |
 
-Le sourcing s'aligne automatiquement sur ce plafond (`objectifSourcing(cap)`),
-en ratissant les communes bruxelloises (`COMMUNES`) jusqu'à reconstituer le stock.
+Quand le stock baisse, relance le bouton « Préparer un gros stock » sur `/sourcer`.
 
 > ⚠️ **Ne pas désactiver le ramp.** 100 cold emails/jour depuis un domaine neuf
 > = spam + blacklist + suspension Brevo. Le plafond protège ta délivrabilité.
-> Le pipeline ne dépasse jamais le cap, même si appelé plusieurs fois par jour.
+> L'envoi ne dépasse jamais le cap, même si appelé plusieurs fois par jour.
 
 ### Lancer manuellement
 
 ```bash
-# Run complet (source + génère + envoie, plafonné)
+# Envoi du lot du jour (depuis le stock)
 curl -X POST http://localhost:3000/api/pipeline/run
 
-# Test sans envoyer (source + génère seulement)
+# Test (n'envoie rien, pas de rapport)
 curl -X POST "http://localhost:3000/api/pipeline/run?dry=1"
 ```
 
