@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { emailDomainAcceptsMail } from "@/lib/verify-email"
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.BREVO_API_KEY
@@ -21,6 +22,17 @@ export async function POST(req: NextRequest) {
 
   for (const prospect of prospects) {
     try {
+      // Vérif MX gratuite : évite les hard bounces qui plombent la
+      // réputation du domaine. L'email invalide est purgé de la fiche.
+      if (!(await emailDomainAcceptsMail(prospect.email!))) {
+        await prisma.prospect.update({
+          where: { id: prospect.id },
+          data: { email: null, notes: `Email invalide (domaine sans MX) : ${prospect.email}` },
+        })
+        errors.push(`${prospect.nom}: domaine email sans MX, envoi annulé`)
+        continue
+      }
+
       const res = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
         headers: { "api-key": apiKey, "Content-Type": "application/json" },

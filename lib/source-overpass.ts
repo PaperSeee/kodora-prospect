@@ -16,6 +16,7 @@ const UA = "KodoraProspect/1.0 (prospection locale; contact: ilias300@outlook.be
 
 const OVERPASS_MIRRORS = [
   "https://overpass-api.de/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
 ]
 
@@ -103,21 +104,34 @@ export async function fetchOverpass(
 );
 out tags center ${Math.max(maxResults * 3, 30)};`
 
-  let elements: Array<{ tags?: Record<string, string> }> = []
-  for (const mirror of OVERPASS_MIRRORS) {
-    try {
-      const res = await fetch(mirror, {
-        method: "POST",
-        headers: { "User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded" },
-        body: `data=${encodeURIComponent(query)}`,
-      })
-      if (!res.ok) continue
-      const data = await res.json()
-      elements = data?.elements ?? []
-      break
-    } catch {
-      // miroir indisponible → on tente le suivant
+  // 2 passes sur les miroirs : un 429 (rate limit) ou un 504 est fréquent et
+  // transitoire — une courte pause suffit généralement. On loggue chaque échec
+  // pour ne plus jamais échouer en silence.
+  let elements: Array<{ tags?: Record<string, string> }> | null = null
+  for (let tentative = 0; tentative < 2 && elements === null; tentative++) {
+    if (tentative > 0) await new Promise((r) => setTimeout(r, 3000))
+    for (const mirror of OVERPASS_MIRRORS) {
+      try {
+        const res = await fetch(mirror, {
+          method: "POST",
+          headers: { "User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded" },
+          body: `data=${encodeURIComponent(query)}`,
+        })
+        if (!res.ok) {
+          console.warn(`[overpass] ${new URL(mirror).host} → HTTP ${res.status} (${secteur} @ ${ville})`)
+          continue
+        }
+        const data = await res.json()
+        elements = data?.elements ?? []
+        break
+      } catch (err) {
+        console.warn(`[overpass] ${new URL(mirror).host} injoignable :`, String(err).slice(0, 100))
+      }
     }
+  }
+  if (elements === null) {
+    console.warn(`[overpass] tous les miroirs ont échoué pour ${secteur} @ ${ville}`)
+    elements = []
   }
 
   const seen = new Set<string>()
