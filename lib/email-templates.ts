@@ -42,12 +42,11 @@ export function noSiteEmailTemplate(
   ville: string,
   avis?: number | null,
 ): { objet: string; corps: string } {
-  const prenom = nom.split(" ")[0]
   const idx = nom.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % OBJETS_NO_SITE.length
   const objet = OBJETS_NO_SITE[idx](nom).slice(0, 50)
   const avisText = avis && avis > 0 ? ` — vous avez ${avis} avis Google` : ""
 
-  const corps = `Bonjour ${prenom},
+  const corps = `Bonjour,
 
 Je cherchais des ${secteur} à ${ville} et je n'ai pas trouvé de site web pour ${nom}${avisText}.
 
@@ -71,7 +70,6 @@ export function auditEmailTemplate(
   auditUrl: string,
   premierProbleme?: string | null,
 ): { objet: string; corps: string; html: string } {
-  const prenom = nom.split(" ")[0]
   const objet = pickAuditObjet(nom)
 
   // Phrase de preuve concrète : cite le 1er problème détecté pour montrer que
@@ -80,7 +78,7 @@ export function auditEmailTemplate(
     ? ` J'ai notamment relevé : ${decapitalize(premierProbleme.trim())}.`
     : ""
 
-  const corps = `Bonjour ${prenom},
+  const corps = `Bonjour,
 
 J'ai fait un audit rapide de la présence en ligne de ${nom} ce matin.
 
@@ -115,7 +113,7 @@ P.S. — Si ce mail ne vous intéresse pas, ignorez-le simplement.`
         <!-- Body -->
         <tr>
           <td style="padding:32px">
-            <p style="margin:0 0 16px;color:#1e293b;font-size:15px;line-height:1.6">Bonjour ${prenom},</p>
+            <p style="margin:0 0 16px;color:#1e293b;font-size:15px;line-height:1.6">Bonjour,</p>
             <p style="margin:0 0 ${preuve ? "12px" : "24px"};color:#334155;font-size:15px;line-height:1.6">
               J'ai fait un audit rapide de la présence en ligne de <strong>${nom}</strong> ce matin.
             </p>
@@ -179,10 +177,9 @@ export function auditWarmFollowUpTemplate(
   nom: string,
   auditUrl: string,
 ): { objet: string; corps: string } {
-  const prenom = nom.split(" ")[0]
   return {
     objet: "Une question sur votre audit ?",
-    corps: `Bonjour ${prenom},
+    corps: `Bonjour,
 
 Vous avez jeté un œil à votre audit — merci. Le point le plus rentable à corriger en premier dépend de votre situation : je peux vous dire lequel attaquer en deux lignes si vous me répondez.
 
@@ -250,7 +247,6 @@ export function staticEmailTemplate(
 ): { objet: string; corps: string } | null {
   const has = (f: string) => flags.some((fl) => fl === f || fl.startsWith(f))
   const avisText = avis && avis > 0 ? ` (vous avez ${avis} avis Google)` : ""
-  const prenom = nom.split(" ")[0]
   const villeLabel = ville && ville.trim() ? ville.trim() : "votre région"
 
   let objet = ""
@@ -258,7 +254,7 @@ export function staticEmailTemplate(
 
   if (has("AUCUN_SITE")) {
     objet = pick(OBJETS_SITE_ABSENT, nom)
-    corps = `Bonjour ${prenom},
+    corps = `Bonjour,
 
 Je cherchais des ${secteur} à ${villeLabel} et je n'ai pas trouvé de site pour votre cabinet${avisText}.
 
@@ -276,7 +272,7 @@ Pour ne plus recevoir mes messages, répondez STOP.`
 
   } else if (has("SITE_INACCESSIBLE") || has("SITE_HS_")) {
     objet = pick(OBJETS_SITE_HS, nom)
-    corps = `Bonjour ${prenom},
+    corps = `Bonjour,
 
 J'ai voulu visiter votre site web mais il semble inaccessible en ce moment${avisText}.
 
@@ -292,7 +288,7 @@ Pour ne plus recevoir mes messages, répondez STOP.`
 
   } else if (has("PAS_MOBILE")) {
     objet = pick(OBJETS_MOBILE, nom)
-    corps = `Bonjour ${prenom},
+    corps = `Bonjour,
 
 J'ai regardé votre site depuis mon téléphone et il s'affiche mal — texte trop petit, boutons difficiles à cliquer${avisText}.
 
@@ -309,7 +305,7 @@ Pour ne plus recevoir mes messages, répondez STOP.`
   } else if (has("SITE_DATE_")) {
     const year = flags.find(f => f.startsWith("SITE_DATE_"))?.replace("SITE_DATE_", "") ?? "plusieurs années"
     objet = pick(OBJETS_DATE, nom)
-    corps = `Bonjour ${prenom},
+    corps = `Bonjour,
 
 J'ai regardé votre site — il date de ${year}${avisText}. Les attentes des visiteurs ont beaucoup changé depuis, et Google pénalise les sites anciens dans ses résultats.
 
@@ -325,7 +321,7 @@ Pour ne plus recevoir mes messages, répondez STOP.`
 
   } else if (has("SITE_LENT")) {
     objet = pick(OBJETS_LENT, nom)
-    corps = `Bonjour ${prenom},
+    corps = `Bonjour,
 
 J'ai testé votre site — il met plus de 4 secondes à charger${avisText}. Google considère qu'au-delà de 3 secondes, la moitié des visiteurs abandonnent.
 
@@ -346,7 +342,7 @@ Pour ne plus recevoir mes messages, répondez STOP.`
       "Un retour rapide sur votre site",
     ]
     objet = pick(objets, nom)
-    corps = `Bonjour ${prenom},
+    corps = `Bonjour,
 
 J'ai regardé votre présence en ligne et j'ai noté quelques points qui pourraient freiner vos contacts depuis le web${avisText}.
 

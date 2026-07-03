@@ -76,6 +76,16 @@ export async function POST(req: NextRequest) {
         if (timeLeft() < 6000) break // marge avant le timeout
 
         try {
+          // Vérif MX gratuite : un hard bounce évité = réputation préservée.
+          const { emailDomainAcceptsMail } = await import("@/lib/verify-email")
+          if (!(await emailDomainAcceptsMail(prospect.email!))) {
+            await prisma.prospect.update({
+              where: { id: prospect.id },
+              data: { email: null, notes: `Email invalide (domaine sans MX) : ${prospect.email}` },
+            })
+            continue
+          }
+
           const res = await fetch("https://api.brevo.com/v3/smtp/email", {
             method: "POST",
             headers: { "api-key": apiKey, "Content-Type": "application/json" },

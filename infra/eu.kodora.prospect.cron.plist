@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>eu.kodora.prospect.cron</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/curl</string>
+    <string>-s</string>
+    <string>http://localhost:3000/api/cron/relance</string>
+  </array>
+  <key>StartInterval</key>
+  <integer>3600</integer>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardOutPath</key>
+  <string>/Users/paperhq/Library/Logs/kodora-relance.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/paperhq/Library/Logs/kodora-relance.log</string>
+</dict>
+</plist>
