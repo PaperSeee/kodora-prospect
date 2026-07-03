@@ -84,6 +84,17 @@ export async function sourceSecteur(
     console.error("[sourcing] Google Places error:", err)
   }
 
+  // Source gratuite (OpenStreetMap) : fonctionne sans aucune clé API.
+  if (prospects.length === 0) {
+    onProgress?.(`Sourcing OpenStreetMap (gratuit) pour : ${secteur}...`)
+    try {
+      const { fetchOverpass } = await import("@/lib/source-overpass")
+      prospects = await fetchOverpass(secteur, ville, maxParSecteur)
+    } catch (err) {
+      console.error("[sourcing] Overpass error:", err)
+    }
+  }
+
   if (prospects.length === 0) {
     onProgress?.(`Fallback scraper pour : ${secteur}...`)
     try {
