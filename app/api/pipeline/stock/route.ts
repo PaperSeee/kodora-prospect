@@ -14,7 +14,9 @@ export const maxDuration = 300 // marge généreuse (le client garde la connexio
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
-  const objectif: number = body.objectif ?? 100
+  // Borné : la route est appelée sans auth depuis le dashboard, on évite
+  // qu'un appel externe puisse déclencher un travail démesuré.
+  const objectif: number = Math.min(Math.max(Number(body.objectif) || 100, 1), 200)
 
   const encoder = new TextEncoder()
   const stream = new TransformStream()
