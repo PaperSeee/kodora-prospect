@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { sendPipelineReport } from "@/lib/pipeline-report"
+import { sendPipelineReport, type EnvoiDetail } from "@/lib/pipeline-report"
 import { dailyCap, jitterDelay, RUN_TIME_BUDGET_MS } from "@/lib/pipeline-config"
 
 // ── CRON QUOTIDIEN : ENVOI SEUL ──
@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
   const run = await prisma.pipelineRun.create({ data: { capUsed: cap, status: "running" } })
 
   let sent = 0
+  const envois: EnvoiDetail[] = []
 
   try {
     if (!dryRun && remaining > 0) {
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest) {
             body: JSON.stringify({
               sender: {
                 name: "Ilias — Kodora",
-                email: process.env.BREVO_SENDER_EMAIL ?? "ilias300@outlook.be",
+                email: process.env.BREVO_SENDER_EMAIL ?? "contact@kodora.eu",
               },
               to: [{ email: prospect.email!, name: prospect.nom }],
               subject: prospect.emailObjet ?? `Votre présence en ligne — ${prospect.nom}`,
@@ -108,6 +109,12 @@ export async function POST(req: NextRequest) {
               data: { statut: "contacte" },
             })
             sent++
+            envois.push({
+              nom: prospect.nom,
+              email: prospect.email!,
+              objet: prospect.emailObjet ?? `Votre présence en ligne — ${prospect.nom}`,
+              corps: prospect.emailCorps!,
+            })
           }
         } catch (err) {
           console.error("[pipeline] send error:", err)
@@ -124,9 +131,9 @@ export async function POST(req: NextRequest) {
       data: { finishedAt: new Date(), sent, status: "done" },
     })
 
-    // Rapport récap par email (pas en dry-run).
+    // Rapport récap par email (pas en dry-run), avec le détail de chaque envoi.
     if (!dryRun) {
-      await sendPipelineReport({ cap, sourced: 0, generated: 0, sent, status: "done" })
+      await sendPipelineReport({ cap, sourced: 0, generated: 0, sent, status: "done", envois })
     }
 
     return NextResponse.json({
@@ -138,7 +145,7 @@ export async function POST(req: NextRequest) {
       where: { id: run.id },
       data: { finishedAt: new Date(), sent, status: "error", error: String(err) },
     })
-    await sendPipelineReport({ cap, sourced: 0, generated: 0, sent, status: "error", error: String(err) })
+    await sendPipelineReport({ cap, sourced: 0, generated: 0, sent, status: "error", error: String(err), envois })
     return NextResponse.json({ ok: false, error: String(err), sent }, { status: 500 })
   }
 }

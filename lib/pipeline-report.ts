@@ -5,6 +5,13 @@ import { prisma } from "@/lib/prisma"
 
 const REPORT_TO = process.env.PIPELINE_REPORT_EMAIL ?? "ilias0703@hotmail.com"
 
+export interface EnvoiDetail {
+  nom: string
+  email: string
+  objet: string
+  corps: string
+}
+
 interface ReportData {
   cap: number
   sourced: number
@@ -12,6 +19,12 @@ interface ReportData {
   sent: number
   status: "done" | "error"
   error?: string
+  // Détail de chaque email parti pendant le run, pour relecture dans le rapport.
+  envois?: EnvoiDetail[]
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 }
 
 export async function sendPipelineReport(data: ReportData): Promise<void> {
@@ -44,13 +57,34 @@ export async function sendPipelineReport(data: ReportData): Promise<void> {
       </table>
       ${data.error ? `<p style="color:#b91c1c;font-size:13px;background:#fee2e2;padding:10px;border-radius:6px">Erreur : ${data.error}</p>` : ""}
       ${stockRestant < 20 ? `<p style="color:#92400e;font-size:13px;background:#fef3c7;padding:10px;border-radius:6px">⚠️ Stock bas — pense à sourcer plus de prospects.</p>` : ""}
+      ${
+        data.envois?.length
+          ? `<h3 style="margin:24px 0 8px;font-size:15px;color:#1f2937">📨 Détail des ${data.envois.length} envois</h3>` +
+            data.envois
+              .map(
+                (e, i) => `
+        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;margin-bottom:10px">
+          <p style="margin:0;font-size:13px"><strong>${i + 1}. ${escapeHtml(e.nom)}</strong> — <a href="mailto:${escapeHtml(e.email)}" style="color:#1a56db">${escapeHtml(e.email)}</a></p>
+          <p style="margin:4px 0 8px;font-size:13px;color:#374151"><strong>Objet :</strong> ${escapeHtml(e.objet)}</p>
+          <pre style="margin:0;padding:10px;background:#f9fafb;border-radius:6px;font-size:12px;color:#4b5563;white-space:pre-wrap;font-family:inherit">${escapeHtml(e.corps)}</pre>
+        </div>`
+              )
+              .join("")
+          : ""
+      }
       <p style="color:#9ca3af;font-size:12px;margin-top:16px">Kodora Prospect — pipeline automatique</p>
     </div>`
 
   const texte =
     `${titre} — ${dateFr}\n` +
     `Sourcés: ${data.sourced} | Générés: ${data.generated} | Envoyés: ${data.sent}/${data.cap} | Stock: ${stockRestant}` +
-    (data.error ? `\nErreur: ${data.error}` : "")
+    (data.error ? `\nErreur: ${data.error}` : "") +
+    (data.envois?.length
+      ? "\n\n── Détail des envois ──\n" +
+        data.envois
+          .map((e, i) => `${i + 1}. ${e.nom} <${e.email}>\nObjet : ${e.objet}\n${e.corps}`)
+          .join("\n\n---\n\n")
+      : "")
 
   try {
     await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -59,7 +93,7 @@ export async function sendPipelineReport(data: ReportData): Promise<void> {
       body: JSON.stringify({
         sender: {
           name: "Kodora Pipeline",
-          email: process.env.BREVO_SENDER_EMAIL ?? "ilias300@outlook.be",
+          email: process.env.BREVO_SENDER_EMAIL ?? "contact@kodora.eu",
         },
         to: [{ email: REPORT_TO }],
         subject: `${titre} — ${data.sent} envoyés aujourd'hui`,
