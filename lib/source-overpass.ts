@@ -12,7 +12,7 @@ import type { PlaceResult } from "@/lib/source-prospects"
 // Politesse imposée par les CGU de ces services publics : User-Agent
 // identifiable et ≥ 1s entre deux requêtes Nominatim.
 
-const UA = "KodoraProspect/1.0 (prospection locale; contact: ilias300@outlook.be)"
+const UA = "KodoraProspect/1.0 (prospection locale; contact: contact@kodora.eu)"
 
 const OVERPASS_MIRRORS = [
   "https://overpass-api.de/api/interpreter",

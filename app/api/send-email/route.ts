@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      sender: { name: "Ilias — Kodora", email: process.env.BREVO_SENDER_EMAIL ?? "ilias300@outlook.be" },
+      sender: { name: "Ilias — Kodora", email: process.env.BREVO_SENDER_EMAIL ?? "contact@kodora.eu" },
       to: [{ email: emailDest, name: prospect.nom }],
       subject: prospect.emailObjet ?? `Votre présence en ligne — ${prospect.nom}`,
       ...(prospect.emailHtml
