@@ -6,14 +6,30 @@
 
 // Secteurs sourcés en rotation (un sous-ensemble différent chaque jour
 // évite de re-scraper toujours les mêmes et épuiser un secteur).
+// Rotation recalibrée le 2026-07-05 sur les données réelles de conversion
+// (2 579 prospects, ~1 200 contactés). Taux de lead chaud mesurés :
+//   comptable 27% · avocat 26% · photographe 25% · traiteur 19% ·
+//   notaire 15% · chauffagiste 15% · restaurant 14% · vétérinaire 14%
+// Sortis de la rotation (mesurés morts) : dentiste 1,5%, architecte 3,6%,
+// ostéopathe 3,3%, menuisier 4,8% (+5 désabos), électricien 5,1%,
+// serrurier/maçon/carreleur/couvreur 0%. Pattern : les professions de bureau
+// et les métiers d'image convertissent ; les artisans de chantier, non.
 export const SECTEURS_ROTATION: string[][] = [
-  ["avocat", "notaire", "comptable"],
-  ["fiduciaire", "architecte", "dentiste"],
-  ["kinésithérapeute", "ostéopathe", "vétérinaire"],
-  ["photographe", "agence immobilière", "courtier en assurance"],
-  ["coach", "traiteur", "salon de coiffure"],
-  ["institut de beauté", "menuisier", "électricien"],
+  ["comptable", "avocat", "photographe"],
+  ["notaire", "traiteur", "vétérinaire"],
+  ["fiduciaire", "restaurant", "chauffagiste"],
+  ["comptable", "avocat", "courtier en assurance"],
+  ["photographe", "traiteur", "opticien"],
+  ["notaire", "coach", "fleuriste"],
 ]
+
+// Secteurs dont la conversion mesurée est forte : bonus de score au sourcing
+// pour qu'ils passent en tête de la file d'envoi (le pipeline envoie par
+// score décroissant).
+export const SECTEURS_PRIORITAIRES = new Set([
+  "comptable", "avocat", "photographe", "traiteur",
+  "notaire", "chauffagiste", "restaurant", "vétérinaire",
+])
 
 // Communes ciblées, par ordre de priorité. On commence par Bruxelles (plus gros
 // marché) ; quand un secteur y est épuisé, le pipeline passe automatiquement à

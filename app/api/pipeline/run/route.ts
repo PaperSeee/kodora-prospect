@@ -126,6 +126,69 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── RELANCES J+3 ──
+    // Le reliquat du quota quotidien sert à relancer les prospects contactés
+    // il y a 3+ jours restés sans suite : une relance unique augmente
+    // typiquement le taux de réponse de moitié. Une seule relance par
+    // prospect (flag relancee), même vérif MX, même plafond quotidien.
+    let relances = 0
+    if (!dryRun && sent < remaining && timeLeft() > 10_000) {
+      const cutoff = new Date(Date.now() - 3 * 86_400_000)
+      const aRelancer = await prisma.prospect.findMany({
+        where: { statut: "contacte", relancee: false, email: { not: null }, updatedAt: { lte: cutoff } },
+        orderBy: { score: "desc" },
+        take: remaining - sent,
+      })
+
+      for (const prospect of aRelancer) {
+        if (timeLeft() < 6000) break
+
+        try {
+          const { emailDomainAcceptsMail } = await import("@/lib/verify-email")
+          if (!(await emailDomainAcceptsMail(prospect.email!))) {
+            await prisma.prospect.update({
+              where: { id: prospect.id },
+              data: { email: null, notes: `Email invalide (domaine sans MX) : ${prospect.email}` },
+            })
+            continue
+          }
+
+          const { relanceEmailTemplate } = await import("@/lib/email-templates")
+          const { objet, corps } = relanceEmailTemplate(prospect.nom, prospect.secteur, prospect.emailOuvert)
+
+          const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+            method: "POST",
+            headers: { "api-key": apiKey, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sender: {
+                name: "Ilias — Kodora",
+                email: process.env.BREVO_SENDER_EMAIL ?? "contact@kodora.eu",
+              },
+              to: [{ email: prospect.email!, name: prospect.nom }],
+              subject: objet,
+              textContent: corps,
+            }),
+          })
+
+          if (res.ok) {
+            await prisma.prospect.update({
+              where: { id: prospect.id },
+              data: { relancee: true, relanceeAt: new Date() },
+            })
+            sent++
+            relances++
+            envois.push({ nom: `${prospect.nom} (relance)`, email: prospect.email!, objet, corps })
+          }
+        } catch (err) {
+          console.error("[pipeline] relance error:", err)
+        }
+
+        if (timeLeft() > 6000) {
+          await new Promise((r) => setTimeout(r, jitterDelay()))
+        }
+      }
+    }
+
     await prisma.pipelineRun.update({
       where: { id: run.id },
       data: { finishedAt: new Date(), sent, status: "done" },
@@ -137,7 +200,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
-      ok: true, dryRun, cap, alreadySentToday, remaining, sent,
+      ok: true, dryRun, cap, alreadySentToday, remaining, sent, relances,
       note: sent < remaining ? "Stock épuisé ou budget temps atteint — prépare un gros stock via le bouton." : undefined,
     })
   } catch (err) {

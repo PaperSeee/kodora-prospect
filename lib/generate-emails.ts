@@ -50,7 +50,7 @@ export async function generateEmailBatch(opts: { regenerate?: boolean; take?: nu
         if (audit) {
           const auditUrl = `${baseUrl}${audit.publicSlug}`
           const problemes = JSON.parse(audit.problemesJson ?? "[]") as { titre: string }[]
-          const result = auditEmailTemplate(prospect.nom, audit.score, problemes.length || 3, auditUrl, problemes[0]?.titre ?? null)
+          const result = auditEmailTemplate(prospect.nom, audit.score, problemes.length || 3, auditUrl, problemes[0]?.titre ?? null, prospect.secteur)
           objet = result.objet
           corps = result.corps
         } else {

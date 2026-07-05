@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { diagnoseSite } from "@/lib/diagnose"
 import { scoreProspect } from "@/lib/score"
+import { SECTEURS_PRIORITAIRES } from "@/lib/pipeline-config"
 
 // Cœur du sourcing, partagé entre la route SSE (/api/sourcing) et
 // l'orchestrateur du pipeline auto (/api/pipeline/run).
@@ -127,7 +128,10 @@ export async function sourceSecteur(
       emailTrouve = await extractEmailFromSite(siteWebReel)
     }
 
-    const { score, angle, goldStar } = scoreProspect(diag.flags, p.avis, p.note)
+    let { score, angle, goldStar } = scoreProspect(diag.flags, p.avis, p.note)
+    // Les secteurs qui convertissent le mieux (mesuré) passent en tête de la
+    // file d'envoi : le pipeline envoie par score décroissant.
+    if (SECTEURS_PRIORITAIRES.has(p.secteur.toLowerCase())) score = Math.min(score + 15, 100)
 
     await prisma.prospect.create({
       data: {
