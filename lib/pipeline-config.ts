@@ -23,10 +23,13 @@ export const SECTEURS_ROTATION: string[][] = [
   ["notaire", "coach", "fleuriste"],
 ]
 
-// Relances J+3 des prospects déjà contactés : DÉSACTIVÉES par choix.
-// Passer à true pour utiliser le reliquat du quota quotidien en relances
-// (1 relance max par prospect, jamais plus).
-export const RELANCES_ACTIVES = false
+// Relances J+3 : actives, mais UNIQUEMENT pour les prospects contactés à
+// partir du début de la nouvelle campagne. Les contacts historiques
+// (anciennes campagnes) ne reçoivent plus jamais rien — ni mail initial
+// (statut "contacte" = exclu de la file), ni relance (plancher de date).
+// 1 relance max par prospect, jamais plus (flag relancee).
+export const RELANCES_ACTIVES = true
+export const RELANCES_SEULEMENT_APRES = new Date("2026-07-04")
 
 // Secteurs dont la conversion mesurée est forte : bonus de score au sourcing
 // pour qu'ils passent en tête de la file d'envoi (le pipeline envoie par

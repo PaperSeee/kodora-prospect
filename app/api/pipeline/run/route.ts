@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendPipelineReport, type EnvoiDetail } from "@/lib/pipeline-report"
-import { dailyCap, jitterDelay, RUN_TIME_BUDGET_MS, RELANCES_ACTIVES } from "@/lib/pipeline-config"
+import { dailyCap, jitterDelay, RUN_TIME_BUDGET_MS, RELANCES_ACTIVES, RELANCES_SEULEMENT_APRES } from "@/lib/pipeline-config"
 
 // ── CRON QUOTIDIEN : ENVOI SEUL ──
 // Le sourcing + la génération se font à la main via le bouton "Préparer un gros
@@ -135,7 +135,9 @@ export async function POST(req: NextRequest) {
     if (RELANCES_ACTIVES && !dryRun && sent < remaining && timeLeft() > 10_000) {
       const cutoff = new Date(Date.now() - 3 * 86_400_000)
       const aRelancer = await prisma.prospect.findMany({
-        where: { statut: "contacte", relancee: false, email: { not: null }, updatedAt: { lte: cutoff } },
+        // gte: ne relance QUE les contacts de la nouvelle campagne — les
+        // prospects des anciennes campagnes ne sont jamais recontactés.
+        where: { statut: "contacte", relancee: false, email: { not: null }, updatedAt: { lte: cutoff, gte: RELANCES_SEULEMENT_APRES } },
         orderBy: { score: "desc" },
         take: remaining - sent,
       })
