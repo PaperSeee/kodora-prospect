@@ -23,6 +23,11 @@ export const SECTEURS_ROTATION: string[][] = [
   ["notaire", "coach", "fleuriste"],
 ]
 
+// Relances J+3 des prospects déjà contactés : DÉSACTIVÉES par choix.
+// Passer à true pour utiliser le reliquat du quota quotidien en relances
+// (1 relance max par prospect, jamais plus).
+export const RELANCES_ACTIVES = false
+
 // Secteurs dont la conversion mesurée est forte : bonus de score au sourcing
 // pour qu'ils passent en tête de la file d'envoi (le pipeline envoie par
 // score décroissant).

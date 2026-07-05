@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendPipelineReport, type EnvoiDetail } from "@/lib/pipeline-report"
-import { dailyCap, jitterDelay, RUN_TIME_BUDGET_MS } from "@/lib/pipeline-config"
+import { dailyCap, jitterDelay, RUN_TIME_BUDGET_MS, RELANCES_ACTIVES } from "@/lib/pipeline-config"
 
 // ── CRON QUOTIDIEN : ENVOI SEUL ──
 // Le sourcing + la génération se font à la main via le bouton "Préparer un gros
@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
     // typiquement le taux de réponse de moitié. Une seule relance par
     // prospect (flag relancee), même vérif MX, même plafond quotidien.
     let relances = 0
-    if (!dryRun && sent < remaining && timeLeft() > 10_000) {
+    if (RELANCES_ACTIVES && !dryRun && sent < remaining && timeLeft() > 10_000) {
       const cutoff = new Date(Date.now() - 3 * 86_400_000)
       const aRelancer = await prisma.prospect.findMany({
         where: { statut: "contacte", relancee: false, email: { not: null }, updatedAt: { lte: cutoff } },
