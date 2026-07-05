@@ -30,6 +30,25 @@ export function isPlateformUrl(url?: string | null): boolean {
   return PLATEFORMES_LABELS.some(p => url.toLowerCase().includes(p))
 }
 
+// Accroche d'une phrase, spécifique au métier, insérée dans les emails.
+// Basée sur les secteurs qui convertissent le mieux (mesuré) : le message
+// parle du problème métier concret, pas de "présence en ligne" générique.
+const SECTEUR_HOOKS: Record<string, string> = {
+  "comptable": "Quand un indépendant cherche un nouveau comptable, il compare 3 ou 4 cabinets sur Google avant d'appeler — celui qui inspire le plus confiance en ligne gagne le dossier.",
+  "fiduciaire": "Quand un indépendant cherche une fiduciaire, il compare 3 ou 4 cabinets sur Google avant d'appeler — celui qui inspire le plus confiance en ligne gagne le dossier.",
+  "avocat": "Un justiciable qui cherche un avocat compare systématiquement plusieurs cabinets en ligne — et la première impression numérique pèse autant que la spécialité.",
+  "notaire": "Pour un achat immobilier ou une succession, les particuliers choisissent de plus en plus leur notaire sur Google — la clarté de votre présence en ligne fait la différence.",
+  "photographe": "Pour un photographe, le site EST le portfolio : un site lent ou daté fait douter de la qualité des images avant même de les avoir vues.",
+  "traiteur": "Un client qui organise un événement compare les traiteurs sur photos et avis avant tout contact — votre vitrine en ligne décide si le devis vous arrive ou pas.",
+  "restaurant": "Vos clients regardent le menu, les photos et les avis en ligne avant de réserver — chaque friction sur votre présence web est une table qui part ailleurs.",
+  "vétérinaire": "Un nouveau propriétaire d'animal choisit son vétérinaire sur Google, à la proximité et aux avis — la fiche et le site font le tri avant le premier appel.",
+  "chauffagiste": "Entre l'entretien annuel et les pannes d'hiver, vos clients vous cherchent sur Google au moment précis du besoin — être visible et rassurant à cet instant fait le carnet de commandes.",
+}
+
+export function secteurHook(secteur: string): string | null {
+  return SECTEUR_HOOKS[secteur.toLowerCase().trim()] ?? null
+}
+
 const OBJETS_NO_SITE = [
   (nom: string) => `Question rapide — ${nom}`,
   (nom: string) => `${nom}, je n'ai pas trouvé votre site`,
@@ -69,8 +88,10 @@ export function auditEmailTemplate(
   nbProblemes: number,
   auditUrl: string,
   premierProbleme?: string | null,
+  secteur?: string,
 ): { objet: string; corps: string; html: string } {
   const objet = pickAuditObjet(nom)
+  const hook = secteur ? secteurHook(secteur) : null
 
   // Phrase de preuve concrète : cite le 1er problème détecté pour montrer que
   // l'audit est réel et spécifique (et non un mailing générique).
@@ -83,7 +104,7 @@ export function auditEmailTemplate(
 J'ai fait un audit rapide de la présence en ligne de ${nom} ce matin.
 
 Score actuel : ${score}/100 — ${nbProblemes} axe${nbProblemes > 1 ? "s" : ""} prioritaire${nbProblemes > 1 ? "s" : ""} identifié${nbProblemes > 1 ? "s" : ""}.${preuve}
-
+${hook ? `\n${hook}\n` : ""}
 Voir le rapport complet (sans inscription) :
 ${auditUrl}
 
@@ -118,6 +139,7 @@ P.S. — Si ce mail ne vous intéresse pas, ignorez-le simplement.`
               J'ai fait un audit rapide de la présence en ligne de <strong>${nom}</strong> ce matin.
             </p>
             ${preuve ? `<p style="margin:0 0 24px;color:#334155;font-size:15px;line-height:1.6">${preuve.trim()}</p>` : ""}
+            ${hook ? `<p style="margin:0 0 24px;color:#334155;font-size:15px;line-height:1.6">${hook}</p>` : ""}
             <!-- Score box -->
             <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:24px">
               <tr>

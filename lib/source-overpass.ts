@@ -43,6 +43,7 @@ const SECTEUR_OSM: Record<string, string[]> = {
   "électricien": ['["craft"="electrician"]'],
   // Secteurs bonus fréquents en prospection locale
   "plombier": ['["craft"="plumber"]'],
+  "chauffagiste": ['["craft"="hvac"]', '["craft"="plumber"]["plumber:heating"!="no"]'],
   "garagiste": ['["shop"="car_repair"]'],
   "boulangerie": ['["shop"="bakery"]'],
   "restaurant": ['["amenity"="restaurant"]'],
