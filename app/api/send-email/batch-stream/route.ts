@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
               name: "Ilias — Kodora",
               email: process.env.BREVO_SENDER_EMAIL ?? "contact@kodora.eu",
             },
+            replyTo: { name: "Ilias — Kodora", email: process.env.BREVO_REPLY_TO ?? "contact@kodora.eu" },
             to: [{ email: prospect.email!, name: prospect.nom }],
             subject: prospect.emailObjet ?? `Votre présence en ligne — ${prospect.nom}`,
             ...(prospect.emailHtml
