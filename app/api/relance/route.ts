@@ -49,6 +49,7 @@ export async function POST() {
             name: "Ilias — Kodora",
             email: process.env.BREVO_SENDER_EMAIL ?? "contact@kodora.eu",
           },
+          replyTo: { name: "Ilias — Kodora", email: process.env.BREVO_REPLY_TO ?? "contact@kodora.eu" },
           to: [{ email: prospect.email!, name: prospect.nom }],
           subject: objet,
           textContent: corps,

@@ -83,7 +83,8 @@ async function scheduleWarmFollowUp(
       "api-key": brevoKey,
     },
     body: JSON.stringify({
-      sender: { name: "Ilias — Kodora", email: "ilias@kodora.eu" },
+      sender: { name: "Ilias — Kodora", email: process.env.BREVO_SENDER_EMAIL ?? "contact@kodora.eu" },
+      replyTo: { name: "Ilias — Kodora", email: process.env.BREVO_REPLY_TO ?? "contact@kodora.eu" },
       to: [{ email: prospect.email }],
       subject: "Une question sur votre audit ?",
       textContent: `Bonjour ${prenom},

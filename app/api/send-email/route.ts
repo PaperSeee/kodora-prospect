@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
     },
     body: JSON.stringify({
       sender: { name: "Ilias — Kodora", email: process.env.BREVO_SENDER_EMAIL ?? "contact@kodora.eu" },
+      replyTo: { name: "Ilias — Kodora", email: process.env.BREVO_REPLY_TO ?? "contact@kodora.eu" },
       to: [{ email: emailDest, name: prospect.nom }],
       subject: prospect.emailObjet ?? `Votre présence en ligne — ${prospect.nom}`,
       ...(prospect.emailHtml
