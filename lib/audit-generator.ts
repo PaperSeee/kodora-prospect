@@ -18,10 +18,11 @@ export interface AuditProbleme {
   categorie: "gbp" | "site" | "avis" | "maps" | "contenu"
 }
 
-export async function generateAudit(prospectId: number) {
-  const prospect = await prisma.prospect.findUniqueOrThrow({ where: { id: prospectId } })
-
-  // Appel LokalSEO API pour l'analyse complète
+// Appelle l'analyse complète LokalSEO (GBP + PageSpeed + Maps + crawl +
+// personnalisation IA). Timeout 40s : l'analyse inclut désormais une passe de
+// rédaction IA — la couper à 8s comme avant faisait tomber la plupart des
+// audits en fallback générique, d'où des rapports tous identiques.
+async function fetchRapportLokalseo(prospect: { nom: string; ville: string; secteur: string; siteWeb: string | null; score: number }) {
   const lokalseoUrl = process.env.LOKALSEO_API_URL || "http://localhost:3000"
   const apiKey = process.env.LOKALSEO_API_KEY || ""
 
@@ -29,10 +30,8 @@ export async function generateAudit(prospectId: number) {
   let scoreRaw = 50
 
   try {
-    // Timeout 8s : l'audit LokalSEO peut être lent. Sans ça, un seul site lent
-    // bloque tout le run et provoque un FUNCTION_INVOCATION_TIMEOUT sur Vercel.
     const controller = new AbortController()
-    const t = setTimeout(() => controller.abort(), 8_000)
+    const t = setTimeout(() => controller.abort(), 40_000)
     const res = await fetch(`${lokalseoUrl}/api/audit`, {
       method: "POST",
       headers: {
@@ -42,6 +41,7 @@ export async function generateAudit(prospectId: number) {
       body: JSON.stringify({
         entreprise: prospect.nom,
         ville: prospect.ville,
+        secteur: prospect.secteur,
         siteWeb: prospect.siteWeb || undefined,
       }),
       signal: controller.signal,
@@ -55,6 +55,14 @@ export async function generateAudit(prospectId: number) {
     // LokalSEO down ou trop lent — fallback sur le score diagnostic existant
     scoreRaw = prospect.score > 0 ? 40 + Math.round(prospect.score * 0.3) : 45
   }
+
+  return { rapportData, scoreRaw }
+}
+
+export async function generateAudit(prospectId: number) {
+  const prospect = await prisma.prospect.findUniqueOrThrow({ where: { id: prospectId } })
+
+  const { rapportData, scoreRaw } = await fetchRapportLokalseo(prospect)
 
   const score = clampScore(scoreRaw)
 
@@ -128,6 +136,41 @@ export async function generateAudit(prospectId: number) {
   })
 
   return audit
+}
+
+// Régénère un audit existant EN PLACE (même publicSlug) : les liens déjà
+// envoyés aux prospects affichent le nouveau rapport personnalisé. Ne touche
+// ni à l'email rédigé ni au statut du prospect.
+export async function regenerateAudit(auditId: string) {
+  const audit = await prisma.audit.findUniqueOrThrow({
+    where: { id: auditId },
+    include: { prospect: true },
+  })
+
+  const { rapportData, scoreRaw } = await fetchRapportLokalseo(audit.prospect)
+  if (!rapportData) throw new Error("LokalSEO indisponible — audit conservé tel quel")
+
+  const problemes: AuditProbleme[] = []
+  const actions = rapportData.actionsPrioritaires as Array<{
+    titre: string; description: string; impact: string; categorie: string
+  }> | undefined
+  for (const a of (actions ?? []).slice(0, 3)) {
+    problemes.push({
+      titre: a.titre,
+      impact: a.description,
+      impactBusiness: estimateBusinessImpact(a.categorie, a.impact),
+      categorie: a.categorie as AuditProbleme["categorie"],
+    })
+  }
+
+  return prisma.audit.update({
+    where: { id: audit.id },
+    data: {
+      score: clampScore(scoreRaw),
+      problemesJson: problemes.length > 0 ? JSON.stringify(problemes) : audit.problemesJson,
+      rapportJson: JSON.stringify(rapportData),
+    },
+  })
 }
 
 function estimateBusinessImpact(categorie: string, impact: string): string {
