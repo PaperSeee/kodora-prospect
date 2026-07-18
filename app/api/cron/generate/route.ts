@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { generateEmailBatch } from "@/lib/generate-emails"
+import { regenerateAudit } from "@/lib/audit-generator"
 import { sourceSecteur } from "@/lib/source-prospects"
 import { dailyCap, SECTEURS_ROTATION, COMMUNES, MAX_PAR_SECTEUR, DIAG_TIMEOUT_PIPELINE_MS } from "@/lib/pipeline-config"
 
@@ -84,10 +85,35 @@ export async function POST(req: NextRequest) {
     sourced += nouveaux
   }
 
+  // ── RÉGÉNÉRATION DES ANCIENS AUDITS ──
+  // Le reliquat du budget temps sert à réécrire les audits générés avant la
+  // personnalisation (rapportJson sans pointsForts) — EN PLACE, mêmes slugs,
+  // pour que les liens déjà envoyés affichent le nouveau rapport. Priorité
+  // aux audits déjà consultés par un prospect, puis aux plus récents.
+  // ~40s par audit → quelques-uns par jour, le stock actif y passe en
+  // une à deux semaines sans intervention.
+  let regenerated = 0
+  if (timeLeft() > 60_000) {
+    const candidats = await prisma.audit.findMany({
+      where: { OR: [{ rapportJson: null }, { rapportJson: { not: { contains: "pointsForts" } } }] },
+      orderBy: [{ firstViewedAt: { sort: "desc", nulls: "last" } }, { generatedAt: "desc" }],
+      take: 10,
+      select: { id: true },
+    })
+    for (const a of candidats) {
+      if (timeLeft() < 60_000) break
+      try {
+        await regenerateAudit(a.id)
+        regenerated++
+      } catch { /* LokalSEO indisponible — retentera demain */ }
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     generated,
     sourced,
+    regenerated,
     stockPret,
     objectif,
     note:
