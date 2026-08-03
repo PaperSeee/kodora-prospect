@@ -6,21 +6,31 @@
 
 // Secteurs sourcés en rotation (un sous-ensemble différent chaque jour
 // évite de re-scraper toujours les mêmes et épuiser un secteur).
-// Rotation recalibrée le 2026-07-05 sur les données réelles de conversion
-// (2 579 prospects, ~1 200 contactés). Taux de lead chaud mesurés :
-//   comptable 27% · avocat 26% · photographe 25% · traiteur 19% ·
-//   notaire 15% · chauffagiste 15% · restaurant 14% · vétérinaire 14%
-// Sortis de la rotation (mesurés morts) : dentiste 1,5%, architecte 3,6%,
-// ostéopathe 3,3%, menuisier 4,8% (+5 désabos), électricien 5,1%,
-// serrurier/maçon/carreleur/couvreur 0%. Pattern : les professions de bureau
-// et les métiers d'image convertissent ; les artisans de chantier, non.
+//
+// Rotation recalibrée le 2026-08-03 sur le backup réel (2026-06-23, 2038
+// prospects, ~1136 contactés). Taux de LEAD CHAUD mesurés par secteur
+// (contactés ≥ 15) :
+//   comptable 33% · photographe 28% · avocat 20% · traiteur 18% ·
+//   chauffagiste 15% · boulangerie 11% · vétérinaire 11% · géomètre 11% ·
+//   notaire 8% · agence immobilière 7%
+// Sortis (morts, mesurés) : dentiste 1,6%, architecte 2%, ostéopathe 0%,
+//   kiné 2,9%, serrurier/maçon/couvreur/carreleur 0%, restaurant 0%, taxi 0%.
+// Pattern confirmé : professions de bureau + métiers d'image convertissent ;
+//   médical et artisans de chantier, non.
+//
+// ⚠️ Épuisement géographique : avocat/comptable/photographe ont été sourcés
+// QUASI UNIQUEMENT à Bruxelles-Ville → le stock y est tari (d'où l'impression
+// terrain que "les avocats ne répondent plus"). La vraie réponse n'est pas de
+// les retirer mais d'aller les chercher dans les 18 autres communes : voir
+// COMMUNES + le sourcing multi-communes (bouton "gros stock" et case "toutes
+// les communes"). On garde donc les bons secteurs, la rotation les redistribue.
 export const SECTEURS_ROTATION: string[][] = [
-  ["comptable", "avocat", "photographe"],
-  ["notaire", "traiteur", "vétérinaire"],
-  ["fiduciaire", "restaurant", "chauffagiste"],
-  ["comptable", "avocat", "courtier en assurance"],
-  ["photographe", "traiteur", "opticien"],
-  ["notaire", "coach", "fleuriste"],
+  ["comptable", "photographe", "avocat"],
+  ["traiteur", "chauffagiste", "boulangerie"],
+  ["vétérinaire", "géomètre", "notaire"],
+  ["comptable", "photographe", "agence immobilière"],
+  ["traiteur", "avocat", "courtier en assurance"],
+  ["photographe", "chauffagiste", "fiduciaire"],
 ]
 
 // Relances J+3 : DÉSACTIVÉES (décision du 2026-07-17) — plus aucune relance
@@ -31,10 +41,11 @@ export const RELANCES_SEULEMENT_APRES = new Date("2026-07-04")
 
 // Secteurs dont la conversion mesurée est forte : bonus de score au sourcing
 // pour qu'ils passent en tête de la file d'envoi (le pipeline envoie par
-// score décroissant).
+// score décroissant). Aligné sur les taux du backup 2026-06-23 (voir ci-dessus).
+// "restaurant" retiré (0% mesuré) ; boulangerie/géomètre ajoutés (>10%).
 export const SECTEURS_PRIORITAIRES = new Set([
-  "comptable", "avocat", "photographe", "traiteur",
-  "notaire", "chauffagiste", "restaurant", "vétérinaire",
+  "comptable", "photographe", "avocat", "traiteur",
+  "chauffagiste", "boulangerie", "vétérinaire", "notaire",
 ])
 
 // Communes ciblées, par ordre de priorité. On commence par Bruxelles (plus gros

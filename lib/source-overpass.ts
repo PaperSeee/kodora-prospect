@@ -81,7 +81,8 @@ async function geocodeVille(ville: string): Promise<[string, string, string, str
 export async function fetchOverpass(
   secteur: string,
   ville: string,
-  maxResults: number
+  maxResults: number,
+  deadline?: number
 ): Promise<PlaceResult[]> {
   const filters = SECTEUR_OSM[secteur.toLowerCase().trim()]
   if (!filters) {
@@ -105,29 +106,36 @@ export async function fetchOverpass(
 );
 out tags center ${Math.max(maxResults * 3, 30)};`
 
-  // 2 passes sur les miroirs : un 429 (rate limit) ou un 504 est fréquent et
-  // transitoire — une courte pause suffit généralement. On loggue chaque échec
-  // pour ne plus jamais échouer en silence.
+  // Un miroir peut renvoyer 429/504 (rate limit/timeout) : on essaie les miroirs
+  // suivants. On évite les longues pauses de retry qui, cumulées sur plusieurs
+  // secteurs, faisaient exploser le budget temps d'un run (et bloquaient l'UI).
+  // Chaque requête a son propre timeout, et on s'arrête si la deadline du run
+  // approche plutôt que d'insister.
+  const tempsRestant = () => (deadline ? deadline - Date.now() : Infinity)
   let elements: Array<{ tags?: Record<string, string> }> | null = null
-  for (let tentative = 0; tentative < 2 && elements === null; tentative++) {
-    if (tentative > 0) await new Promise((r) => setTimeout(r, 3000))
-    for (const mirror of OVERPASS_MIRRORS) {
-      try {
-        const res = await fetch(mirror, {
-          method: "POST",
-          headers: { "User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded" },
-          body: `data=${encodeURIComponent(query)}`,
-        })
-        if (!res.ok) {
-          console.warn(`[overpass] ${new URL(mirror).host} → HTTP ${res.status} (${secteur} @ ${ville})`)
-          continue
-        }
-        const data = await res.json()
-        elements = data?.elements ?? []
-        break
-      } catch (err) {
-        console.warn(`[overpass] ${new URL(mirror).host} injoignable :`, String(err).slice(0, 100))
+  for (const mirror of OVERPASS_MIRRORS) {
+    if (tempsRestant() < 6000) break // pas le temps pour un autre miroir : on rend la main
+    try {
+      const ctrl = new AbortController()
+      // Timeout par requête : min(temps restant - marge, 25s)
+      const budget = Math.min(Math.max(tempsRestant() - 2000, 3000), 25000)
+      const to = setTimeout(() => ctrl.abort(), budget)
+      const res = await fetch(mirror, {
+        method: "POST",
+        headers: { "User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded" },
+        body: `data=${encodeURIComponent(query)}`,
+        signal: ctrl.signal,
+      })
+      clearTimeout(to)
+      if (!res.ok) {
+        console.warn(`[overpass] ${new URL(mirror).host} → HTTP ${res.status} (${secteur} @ ${ville})`)
+        continue
       }
+      const data = await res.json()
+      elements = data?.elements ?? []
+      break
+    } catch (err) {
+      console.warn(`[overpass] ${new URL(mirror).host} injoignable :`, String(err).slice(0, 100))
     }
   }
   if (elements === null) {

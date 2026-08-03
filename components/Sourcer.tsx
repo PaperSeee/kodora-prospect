@@ -11,16 +11,18 @@ interface ProgressLine {
 interface SecteursData {
   secteurs: string[]
   categories: Record<string, string[]>
+  communes: string[]
 }
 
 export function Sourcer() {
   const [ville, setVille] = useState("Bruxelles")
+  const [toutesCommunes, setToutesCommunes] = useState(false)
   const [secteurs, setSecteurs] = useState<string[]>([])
   const [maxParSecteur, setMaxParSecteur] = useState(20)
   const [running, setRunning] = useState(false)
   const [log, setLog] = useState<ProgressLine[]>([])
   const [done, setDone] = useState(false)
-  const [data, setData] = useState<SecteursData>({ secteurs: [], categories: {} })
+  const [data, setData] = useState<SecteursData>({ secteurs: [], categories: {}, communes: [] })
   const [openCat, setOpenCat] = useState<string | null>(null)
   const [searchSecteur, setSearchSecteur] = useState("")
 
@@ -30,37 +32,75 @@ export function Sourcer() {
   const [stockLog, setStockLog] = useState<string[]>([])
   const [stockDone, setStockDone] = useState<{ sourced: number; generated: number; stockPret: number } | null>(null)
 
+  // Un "run" = une passe bornée à ~52s côté serveur (limite Vercel). Si toutes
+  // les communes n'ont pas été ratissées dans ce budget, le serveur renvoie
+  // `termine: false` + le curseur `communeStart` : on relance automatiquement
+  // là où on s'est arrêté, jusqu'à ce que ce soit fini. L'utilisateur ne voit
+  // qu'une seule barre de progression continue.
   const lancerStock = async () => {
     setStockRunning(true)
     setStockDone(null)
     setStockLog([])
 
-    const res = await fetch("/api/pipeline/stock", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ objectif: stockObjectif }),
-    })
+    let communeStart = 0
+    let cumulSourced = 0
+    let cumulGenerated = 0
+    let stockPret = 0
 
-    const reader = res.body!.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ""
+    try {
+      // Garde-fou : au pire COMMUNES.length passes (19). En pratique bien moins.
+      for (let passe = 0; passe < 25; passe++) {
+        const res = await fetch("/api/pipeline/stock", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ objectif: stockObjectif, communeStart }),
+        })
+        if (!res.ok || !res.body) {
+          setStockLog((prev) => [...prev, `⚠️ Erreur serveur (${res.status}) — réessayez.`])
+          break
+        }
 
-    while (true) {
-      const { done: streamDone, value } = await reader.read()
-      if (streamDone) break
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split("\n\n")
-      buffer = lines.pop() ?? ""
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue
-        try {
-          const p = JSON.parse(line.slice(6))
-          if (p.type === "done") setStockDone({ sourced: p.sourced, generated: p.generated, stockPret: p.stockPret })
-          else if (p.message) setStockLog((prev) => [...prev, p.message])
-        } catch {}
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ""
+        let termine = true
+
+        while (true) {
+          const { done: streamDone, value } = await reader.read()
+          if (streamDone) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split("\n\n")
+          buffer = lines.pop() ?? ""
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue
+            try {
+              const p = JSON.parse(line.slice(6))
+              if (p.type === "done") {
+                cumulSourced += p.sourced ?? 0
+                cumulGenerated += p.generated ?? 0
+                stockPret = p.stockPret ?? stockPret
+                termine = p.termine !== false
+                communeStart = p.communeStart ?? 0
+                if (!termine && p.prochaineCommune) {
+                  setStockLog((prev) => [...prev, `⏭️ On continue avec ${p.prochaineCommune}…`])
+                }
+              } else if (p.type === "error") {
+                setStockLog((prev) => [...prev, `⚠️ ${p.message}`])
+                termine = true
+              } else if (p.message) {
+                setStockLog((prev) => [...prev, p.message])
+              }
+            } catch {}
+          }
+        }
+
+        // Objectif atteint OU toutes les communes ratissées → on arrête.
+        if (termine || cumulSourced >= stockObjectif) break
       }
+    } finally {
+      setStockDone({ sourced: cumulSourced, generated: cumulGenerated, stockPret })
+      setStockRunning(false)
     }
-    setStockRunning(false)
   }
 
   useEffect(() => {
@@ -92,32 +132,60 @@ export function Sourcer() {
     setDone(false)
     setLog([])
 
-    const res = await fetch("/api/sourcing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ville, secteurs, maxParSecteur }),
-    })
+    let communeStart = 0
+    let totalCumul = 0
 
-    const reader = res.body!.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ""
+    try {
+      // En mode "toutes les communes", le serveur borne chaque passe à ~52s
+      // (limite Vercel) et renvoie un curseur : on relance automatiquement
+      // jusqu'à avoir couvert les 19 communes. En mode ville unique : 1 passe.
+      for (let passe = 0; passe < 25; passe++) {
+        const res = await fetch("/api/sourcing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ville, secteurs, maxParSecteur, toutesCommunes, communeStart }),
+        })
+        if (!res.ok || !res.body) {
+          setLog((prev) => [...prev, { type: "progress", message: `⚠️ Erreur serveur (${res.status}).` }])
+          break
+        }
 
-    while (true) {
-      const { done: streamDone, value } = await reader.read()
-      if (streamDone) break
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split("\n\n")
-      buffer = lines.pop() ?? ""
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue
-        try {
-          const parsed: ProgressLine = JSON.parse(line.slice(6))
-          setLog((prev) => [...prev, parsed])
-          if (parsed.type === "done") setDone(true)
-        } catch {}
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ""
+        let termine = true
+
+        while (true) {
+          const { done: streamDone, value } = await reader.read()
+          if (streamDone) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split("\n\n")
+          buffer = lines.pop() ?? ""
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue
+            try {
+              const parsed: ProgressLine & { termine?: boolean; communeStart?: number } = JSON.parse(line.slice(6))
+              if (parsed.type === "done") {
+                totalCumul += parsed.totalInserts ?? 0
+                termine = parsed.termine !== false
+                communeStart = parsed.communeStart ?? 0
+                // On n'affiche le "done" final qu'une fois tout terminé.
+                if (termine) {
+                  setLog((prev) => [...prev, { type: "done", totalInserts: totalCumul }])
+                  setDone(true)
+                }
+              } else {
+                setLog((prev) => [...prev, parsed])
+              }
+            } catch {}
+          }
+        }
+
+        if (termine) break
       }
+    } finally {
+      setRunning(false)
     }
-    setRunning(false)
   }
 
   return (
@@ -181,10 +249,20 @@ export function Sourcer() {
           <div className="flex-1">
             <label className="mb-1 block text-xs font-medium text-zinc-400">Ville</label>
             <input
-              value={ville}
+              value={toutesCommunes ? "Toutes les communes de Bruxelles" : ville}
               onChange={(e) => setVille(e.target.value)}
-              className="w-full rounded bg-zinc-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              disabled={toutesCommunes}
+              className="w-full rounded bg-zinc-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-60"
             />
+            <label className="mt-2 flex items-center gap-2 text-xs text-zinc-300 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={toutesCommunes}
+                onChange={(e) => setToutesCommunes(e.target.checked)}
+                className="accent-indigo-500"
+              />
+              Ratisser les {data.communes.length || 19} communes de Bruxelles-Capitale (pas seulement Bruxelles-Ville)
+            </label>
           </div>
           <div className="w-48">
             <label className="mb-1 block text-xs font-medium text-zinc-400">
@@ -294,7 +372,9 @@ export function Sourcer() {
           className="w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {running
-            ? `Sourcing en cours... (${secteurs.length} secteurs × ${maxParSecteur} max)`
+            ? `Sourcing en cours...${toutesCommunes ? " (toutes les communes)" : ""}`
+            : toutesCommunes
+            ? `🚀 Lancer sur les ${data.communes.length || 19} communes — ${secteurs.length} secteur${secteurs.length > 1 ? "s" : ""} × ${maxParSecteur} max`
             : `🚀 Lancer le sourcing — ${secteurs.length} secteur${secteurs.length > 1 ? "s" : ""} × ${maxParSecteur} max = jusqu'à ${secteurs.length * maxParSecteur} prospects`}
         </button>
       </div>

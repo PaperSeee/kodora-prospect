@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { COMMUNES } from "@/lib/pipeline-config"
 
 export const SECTEURS_LIST = [
   // Juridique & finance
@@ -37,5 +38,5 @@ export const CATEGORIES: Record<string, string[]> = {
 }
 
 export async function GET() {
-  return NextResponse.json({ secteurs: SECTEURS_LIST, categories: CATEGORIES })
+  return NextResponse.json({ secteurs: SECTEURS_LIST, categories: CATEGORIES, communes: COMMUNES })
 }
