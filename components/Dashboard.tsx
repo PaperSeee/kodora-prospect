@@ -269,8 +269,9 @@ export function Dashboard() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-xs font-bold ${SCORE_COLOR(p.score)}`}>{p.score}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-xs text-white ${wasSent ? "bg-blue-600" : s?.color ?? "bg-zinc-600"}`}>
-                    {wasSent ? "Contacté ✓" : s?.label ?? p.statut}
+                  <span className={`rounded-full px-2 py-0.5 text-xs text-white ${wasSent ? "bg-slate-600" : s?.color ?? "bg-zinc-600"}`}>
+                    {/* "En file" = accepté par Brevo, pas remis — "Contacté" n'est vrai qu'après le webhook delivered */}
+                    {wasSent ? "En file ✓" : s?.label ?? p.statut}
                   </span>
                 </div>
               </div>

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { sendBrevoEmail } from "@/lib/send-brevo-email"
 
 export const maxDuration = 300
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.BREVO_API_KEY
-  if (!apiKey) return NextResponse.json({ error: "BREVO_API_KEY manquante" }, { status: 400 })
+  if (!process.env.BREVO_API_KEY) return NextResponse.json({ error: "BREVO_API_KEY manquante" }, { status: 400 })
 
   const body = await req.json().catch(() => ({}))
   const limit = Math.min(Math.max(1, parseInt(body.limit) || 300), 300)
@@ -41,33 +41,22 @@ export async function POST(req: NextRequest) {
 
     for (const prospect of prospects) {
       try {
-        const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-          method: "POST",
-          headers: { "api-key": apiKey, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sender: {
-              name: "Ilias — Kodora",
-              email: process.env.BREVO_SENDER_EMAIL ?? "contact@kodora.eu",
-            },
-            replyTo: { name: "Ilias — Kodora", email: process.env.BREVO_REPLY_TO ?? "contact@kodora.eu" },
-            to: [{ email: prospect.email!, name: prospect.nom }],
-            subject: prospect.emailObjet ?? `Votre présence en ligne — ${prospect.nom}`,
-            ...(prospect.emailHtml
-              ? { htmlContent: prospect.emailHtml, textContent: prospect.emailCorps! }
-              : { textContent: prospect.emailCorps! }),
-          }),
+        // res.ok = accepté par Brevo (→ statut "en_file"), pas remis. Le
+        // frontend ne doit donc plus afficher "Contacté" ici — le vrai
+        // statut "contacte" n'arrive que via le webhook "delivered".
+        const result = await sendBrevoEmail({
+          prospectId: prospect.id,
+          to: { email: prospect.email!, name: prospect.nom },
+          subject: prospect.emailObjet ?? `Votre présence en ligne — ${prospect.nom}`,
+          textContent: prospect.emailCorps!,
+          htmlContent: prospect.emailHtml ?? undefined,
         })
 
-        if (res.ok) {
-          await prisma.prospect.update({
-            where: { id: prospect.id },
-            data: { statut: "contacte" },
-          })
+        if (result.ok) {
           count++
           send({ type: "sent", prospectId: prospect.id, nom: prospect.nom, count })
         } else {
-          const err = await res.json().catch(() => ({}))
-          const errMsg = `${prospect.nom}: ${JSON.stringify(err)}`
+          const errMsg = `${prospect.nom}: ${JSON.stringify(result.error)}`
           errors.push(errMsg)
           send({ type: "error", nom: prospect.nom, error: errMsg })
         }

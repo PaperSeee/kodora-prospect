@@ -342,8 +342,10 @@ export function Pipeline() {
         try {
           const evt = JSON.parse(line.slice(6))
           if (evt.type === "sent" && evt.prospectId) {
+            // "sent" = accepté par Brevo, pas remis — le statut réel
+            // "contacte" n'arrive qu'avec le webhook "delivered".
             setProspects((prev) =>
-              prev.map((p) => p.id === evt.prospectId ? { ...p, statut: "contacte" } : p)
+              prev.map((p) => p.id === evt.prospectId ? { ...p, statut: "en_file" } : p)
             )
             count = evt.count
           }
