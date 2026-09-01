@@ -29,12 +29,17 @@ export async function POST(req: NextRequest) {
       data: { ctaClicked: true, ctaClickedAt: new Date() },
     })
 
+    // Un clic n'est pas un rendez-vous — et une partie de ces clics vient de
+    // scanners de sécurité (Outlook Safe Links, Barracuda, Proofpoint) qui
+    // suivent tous les liens d'un email automatiquement. "rdv" reste
+    // exclusivement manuel, avec une date obligatoire (voir PATCH /api/prospects/[id]).
     await prisma.prospect.update({
       where: { id: audit.prospectId },
-      data: { statut: "rdv" },
+      data: { statut: "cta_clique" },
     })
 
-    // Notif immédiate 🔥
+    // Notif immédiate — signal fort mais pas un événement confirmé humain,
+    // le libellé du webhook le dit explicitement.
     const webhookUrl = process.env.LEAD_NOTIFY_WEBHOOK
     if (webhookUrl) {
       const baseUrl = process.env.PUBLIC_RAPPORT_BASE_URL || "http://localhost:3001/rapport/"
@@ -42,7 +47,7 @@ export async function POST(req: NextRequest) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: `🔥 **LEAD ULTRA CHAUD** — ${audit.prospect.nom} vient de cliquer sur "Demander un devis" !\nScore : ${audit.score}/100\nEmail : ${audit.prospect.email ?? "inconnu"}\nTél : ${audit.prospect.telephone ?? "inconnu"}\nAudit : ${baseUrl}${audit.publicSlug}\nStatut → rdv`,
+          content: `🔥 **CTA cliqué** — ${audit.prospect.nom} vient de cliquer sur "Demander un devis" (peut être un scanner de sécurité, à vérifier).\nScore : ${audit.score}/100\nEmail : ${audit.prospect.email ?? "inconnu"}\nTél : ${audit.prospect.telephone ?? "inconnu"}\nAudit : ${baseUrl}${audit.publicSlug}\nStatut → cta_clique`,
         }),
       }).catch(() => {})
     }

@@ -8,6 +8,21 @@ export async function PATCH(
   const { id } = await params
   const body = await req.json()
 
+  // statut="rdv" est la seule action qui déclenche un vrai rendez-vous côté
+  // business : elle ne peut venir que d'ici (interface manuelle), jamais
+  // d'un tracking automatique, et exige une date. Sans rdvAt, on refuse —
+  // pas de RDV fantôme.
+  if (body.statut === "rdv") {
+    const rdvAt = body.rdvAt ?? null
+    if (!rdvAt || Number.isNaN(new Date(rdvAt).getTime())) {
+      return NextResponse.json(
+        { error: "rdvAt (date du rendez-vous) requis pour passer un prospect en statut rdv" },
+        { status: 400 }
+      )
+    }
+    body.rdvAt = new Date(rdvAt)
+  }
+
   const prospect = await prisma.prospect.update({
     where: { id: parseInt(id, 10) },
     data: body,
