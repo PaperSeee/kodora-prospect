@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { isLikelyBotUserAgent, isWithinScannerWindow } from "@/lib/bot-detect"
 
 function checkApiKey(req: NextRequest): boolean {
   const key = req.headers.get("x-api-key")
@@ -8,13 +9,15 @@ function checkApiKey(req: NextRequest): boolean {
 
 // POST /api/audits/track-view
 // Appelé par LokalSEO quand un audit est consulté
-// Body: { slug: string }
+// Body: { slug: string, userAgent?: string } — userAgent est celui du
+// visiteur final, transmis par LokalSEO (l'appel lui-même est serveur à
+// serveur donc req.headers ne porte pas l'UA du visiteur).
 export async function POST(req: NextRequest) {
   if (!checkApiKey(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { slug } = await req.json()
+  const { slug, userAgent } = await req.json()
   if (!slug) return NextResponse.json({ error: "slug required" }, { status: 400 })
 
   const audit = await prisma.audit.findUnique({
@@ -35,12 +38,22 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  // Relance à chaud si première vue + prospect déjà contacté
-  if (isFirstView && audit.prospect.statut === "contacte") {
-    // Marquer lead chaud
+  // Une vue de page n'est pas un lead intéressé — et une partie de ces vues
+  // vient de scanners de sécurité d'entreprise qui ouvrent les liens des
+  // emails automatiquement. On filtre par UA connu ET par délai depuis la
+  // remise de l'email (< 30s = trop tôt pour un humain).
+  const lastDelivered = await prisma.emailEvent.findFirst({
+    where: { prospectId: audit.prospectId, event: "delivered" },
+    orderBy: { receivedAt: "desc" },
+  })
+  const looksHuman =
+    !isLikelyBotUserAgent(userAgent) &&
+    !isWithinScannerWindow(lastDelivered?.receivedAt ?? null, now)
+
+  if (isFirstView && looksHuman && audit.prospect.statut === "contacte") {
     await prisma.prospect.update({
       where: { id: audit.prospectId },
-      data: { statut: "lead_chaud" },
+      data: { statut: "audit_vu" },
     })
 
     // Notif Discord/webhook
@@ -51,7 +64,7 @@ export async function POST(req: NextRequest) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: `👁️ **${audit.prospect.nom}** vient de consulter son audit pour la première fois !\nScore : ${audit.score}/100\nAudit : ${baseUrl}${audit.publicSlug}\nStatut → lead_chaud`,
+          content: `👁️ **${audit.prospect.nom}** vient de consulter son audit pour la première fois !\nScore : ${audit.score}/100\nAudit : ${baseUrl}${audit.publicSlug}\nStatut → audit_vu`,
         }),
       }).catch(() => {})
     }
@@ -60,13 +73,21 @@ export async function POST(req: NextRequest) {
     scheduleWarmFollowUp(audit.prospect, audit.publicSlug).catch(() => {})
   }
 
-  return NextResponse.json({ ok: true, isFirstView, viewCount: audit.viewCount + 1 })
+  return NextResponse.json({ ok: true, isFirstView, looksHuman, viewCount: audit.viewCount + 1 })
 }
 
+// TODO(2026-09-08+) : réactiver une fois le texte remplacé. L'offre "on
+// corrige l'ensemble en 7 jours (dès 299 €)" est l'ancien site vitrine, plus
+// d'actualité — le nouveau contenu dépend d'une étude de cas qui n'existera
+// que le 8 septembre. Désactivé pour ne pas envoyer une offre obsolète en
+// automatique pendant que ce point traîne. Ne pas réécrire le texte ici en
+// attendant : voir avec Ilias pour le nouveau contenu avant de dé-commenter.
 async function scheduleWarmFollowUp(
   prospect: { id: number; nom: string; email: string | null; secteur: string },
   slug: string
 ) {
+  return
+  // eslint-disable-next-line no-unreachable
   if (!prospect.email) return
 
   const brevoKey = process.env.BREVO_API_KEY
