@@ -81,13 +81,14 @@ export async function POST(req: NextRequest) {
 // d'actualité — le nouveau contenu dépend d'une étude de cas qui n'existera
 // que le 8 septembre. Désactivé pour ne pas envoyer une offre obsolète en
 // automatique pendant que ce point traîne. Ne pas réécrire le texte ici en
-// attendant : voir avec Ilias pour le nouveau contenu avant de dé-commenter.
+// attendant : voir avec Ilias pour le nouveau contenu avant de dé-commenter
+// le corps ci-dessous.
 async function scheduleWarmFollowUp(
-  prospect: { id: number; nom: string; email: string | null; secteur: string },
-  slug: string
-) {
+  _prospect: { id: number; nom: string; email: string | null; secteur: string },
+  _slug: string
+): Promise<void> {
   return
-  // eslint-disable-next-line no-unreachable
+  /*
   if (!prospect.email) return
 
   const brevoKey = process.env.BREVO_API_KEY
@@ -124,4 +125,5 @@ P.S. Si vous n'êtes pas intéressé, ignorez simplement ce message.`,
       tags: ["relance-chaude"],
     }),
   })
+  */
 }
