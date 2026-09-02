@@ -215,10 +215,8 @@ export function Dashboard() {
         <p className="mb-3 text-xs text-zinc-500">
           Sourcing sans limite de temps (contrairement au bouton &laquo; Préparer un gros stock &raquo; sur /sourcer, plafonné à 52s par Vercel) — tourne sur ta machine via <code className="text-zinc-400">scripts/sourcing-agent.ts</code>, relayé ici par tunnel.
         </p>
-        {!agentStatus?.configured && (
-          <p className="mb-3 text-xs text-amber-400">
-            Agent non configuré. Lance <code>npx tsx scripts/sourcing-agent.ts</code> sur ton Mac, un tunnel (ex: <code>ngrok http 3999</code>), puis ajoute SOURCING_AGENT_URL / SOURCING_AGENT_KEY dans Vercel → Settings → Environment Variables.
-          </p>
+        {!agentStatus?.reachable && (
+          <AgentSetupInstructions configured={agentStatus?.configured ?? false} />
         )}
         <button
           onClick={sourceGrosVolume}
@@ -387,6 +385,55 @@ export function Dashboard() {
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+// Panneau de commandes à copier-coller quand l'agent local n'est pas
+// joignable — évite de devoir ressortir la procédure à chaque redémarrage
+// du Mac ou de ngrok (l'URL change à chaque relance de ngrok en compte
+// gratuit, donc l'étape 3 est quasi systématique).
+function AgentSetupInstructions({ configured }: { configured: boolean }) {
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null)
+
+  const copy = (text: string, idx: number) => {
+    navigator.clipboard.writeText(text)
+    setCopiedIdx(idx)
+    setTimeout(() => setCopiedIdx((c) => (c === idx ? null : c)), 1500)
+  }
+
+  const steps: { label: string; cmd: string }[] = [
+    { label: "1. Lancer l'agent (le laisser tourner)", cmd: "npx tsx scripts/sourcing-agent.ts" },
+    { label: "2. Ouvrir le tunnel, dans un autre terminal (le laisser tourner)", cmd: "ngrok http 3999" },
+    { label: "3. Récupérer l'URL publique du tunnel", cmd: "curl -s http://127.0.0.1:4040/api/tunnels | grep -o 'https://[a-z0-9.-]*\\.ngrok-free\\.\\(app\\|dev\\)' | head -1" },
+  ]
+
+  return (
+    <div className="mb-3 rounded-lg border border-amber-900/60 bg-amber-950/30 p-3">
+      <p className="mb-2 text-xs text-amber-400">
+        {configured ? "Agent injoignable — relance-le sur ton Mac :" : "Agent jamais configuré — première mise en route :"}
+      </p>
+      <div className="space-y-2">
+        {steps.map((step, i) => (
+          <div key={i}>
+            <p className="mb-1 text-[11px] text-zinc-500">{step.label}</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 overflow-x-auto whitespace-nowrap rounded bg-zinc-950 px-2 py-1.5 text-[11px] text-zinc-300">
+                {step.cmd}
+              </code>
+              <button
+                onClick={() => copy(step.cmd, i)}
+                className="shrink-0 rounded bg-zinc-800 px-2 py-1.5 text-[11px] text-zinc-300 hover:bg-zinc-700"
+              >
+                {copiedIdx === i ? "✓ copié" : "copier"}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-[11px] text-zinc-500">
+        4. Colle l&apos;URL affichée par l&apos;étape 3 dans Vercel → Settings → Environment Variables → <code className="text-zinc-400">SOURCING_AGENT_URL</code>{configured ? "" : <>, avec <code className="text-zinc-400">SOURCING_AGENT_KEY</code> = la clé de ton <code className="text-zinc-400">.env.local</code></>} — puis redéploie. Le badge ci-dessus repasse au vert une fois le nouveau déploiement actif.
+      </p>
     </div>
   )
 }
