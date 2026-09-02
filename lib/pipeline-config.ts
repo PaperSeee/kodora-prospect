@@ -7,30 +7,30 @@
 // Secteurs sourcés en rotation (un sous-ensemble différent chaque jour
 // évite de re-scraper toujours les mêmes et épuiser un secteur).
 //
-// Rotation recalibrée le 2026-08-03 sur le backup réel (2026-06-23, 2038
-// prospects, ~1136 contactés). Taux de LEAD CHAUD mesurés par secteur
-// (contactés ≥ 15) :
-//   comptable 33% · photographe 28% · avocat 20% · traiteur 18% ·
-//   chauffagiste 15% · boulangerie 11% · vétérinaire 11% · géomètre 11% ·
-//   notaire 8% · agence immobilière 7%
-// Sortis (morts, mesurés) : dentiste 1,6%, architecte 2%, ostéopathe 0%,
-//   kiné 2,9%, serrurier/maçon/couvreur/carreleur 0%, restaurant 0%, taxi 0%.
-// Pattern confirmé : professions de bureau + métiers d'image convertissent ;
-//   médical et artisans de chantier, non.
+// ⚠️ RETARGETÉ le 2026-09-02 pour le pivot Google Ads (growth operator).
+// Les taux "LEAD CHAUD" mesurés le 2026-08-03 (comptable 33%, photographe
+// 28%, avocat 20%...) mesuraient la conversion sur l'ANCIENNE offre — site
+// vitrine à 299€. Ils ne disent rien de la conversion sur l'offre Ads,
+// et ne doivent plus servir de boussole : un bon prospect Ads n'est pas
+// "il n'a pas de beau site", c'est "chez lui, la recherche est urgente et
+// la personne appelle le premier numéro qu'elle voit" — l'argument central
+// de la séquence email (voir lib/email-templates.ts). Ça exclut par
+// construction les professions de bureau (comptable, avocat, notaire) où
+// personne ne cherche "avocat urgence" un dimanche soir, et ça inclut les
+// métiers d'urgence que le backup 2026-08-03 avait classés "morts" pour
+// l'ancienne offre (serrurier 0%, artisans de chantier 0%) — un chiffre
+// qui mesurait le mauvais produit, pas le mauvais secteur.
 //
-// ⚠️ Épuisement géographique : avocat/comptable/photographe ont été sourcés
-// QUASI UNIQUEMENT à Bruxelles-Ville → le stock y est tari (d'où l'impression
-// terrain que "les avocats ne répondent plus"). La vraie réponse n'est pas de
-// les retirer mais d'aller les chercher dans les 18 autres communes : voir
-// COMMUNES + le sourcing multi-communes (bouton "gros stock" et case "toutes
-// les communes"). On garde donc les bons secteurs, la rotation les redistribue.
+// Repose sur lib/source-overpass.ts::SECTEUR_OSM pour le sourcing gratuit
+// (fallback sans clé Google Places) — débouchage, serrurier, vitrier,
+// dégâts des eaux, humidité, nuisibles y sont mappés depuis ce même commit.
 export const SECTEURS_ROTATION: string[][] = [
-  ["comptable", "photographe", "avocat"],
-  ["traiteur", "chauffagiste", "boulangerie"],
-  ["vétérinaire", "géomètre", "notaire"],
-  ["comptable", "photographe", "agence immobilière"],
-  ["traiteur", "avocat", "courtier en assurance"],
-  ["photographe", "chauffagiste", "fiduciaire"],
+  ["débouchage", "serrurier", "vitrier"],
+  ["électricien", "chauffagiste", "plombier"],
+  ["dégâts des eaux", "nuisibles", "humidité"],
+  ["débouchage", "vitrier", "chauffagiste"],
+  ["serrurier", "électricien", "plombier"],
+  ["débouchage", "nuisibles", "dégâts des eaux"],
 ]
 
 // Séquence de suivi réactivée le 2026-09-02, sur un nouveau principe :
@@ -44,12 +44,15 @@ export const RELANCES_SEULEMENT_APRES = new Date("2026-09-02")
 
 // Secteurs dont la conversion mesurée est forte : bonus de score au sourcing
 // pour qu'ils passent en tête de la file d'envoi (le pipeline envoie par
-// score décroissant). Aligné sur les taux du backup 2026-06-23 (voir ci-dessus).
-// "restaurant" retiré (0% mesuré) ; boulangerie/géomètre ajoutés (>10%).
-export const SECTEURS_PRIORITAIRES = new Set([
-  "comptable", "photographe", "avocat", "traiteur",
-  "chauffagiste", "boulangerie", "vétérinaire", "notaire",
-])
+// score décroissant).
+//
+// Vidé le 2026-09-02 : les anciens taux (comptable 33%, photographe 28%...)
+// mesuraient la conversion sur l'offre site vitrine, périmés pour l'offre
+// Ads. Pas de nouvelles données mesurées sur les métiers d'urgence — plutôt
+// qu'inventer une hiérarchie sans preuve, le bonus reste neutre (aucun
+// secteur favorisé) tant qu'un vrai backup n'a pas tourné sur la nouvelle
+// rotation. Rebrancher une fois 2-3 semaines de données réelles disponibles.
+export const SECTEURS_PRIORITAIRES = new Set<string>([])
 
 // Communes ciblées, par ordre de priorité. On commence par Bruxelles (plus gros
 // marché) ; quand un secteur y est épuisé, le pipeline passe automatiquement à

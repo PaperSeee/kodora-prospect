@@ -5,12 +5,16 @@ import { COMMUNES, DIAG_TIMEOUT_PIPELINE_MS, RUN_TIME_BUDGET_MS } from "@/lib/pi
 export const maxDuration = 60 // Vercel Hobby : plafond réel.
 
 // Liste des secteurs proposés dans l'UI de sourcing.
+// Métiers d'urgence en tête depuis le 2026-09-02 (pivot Google Ads) — voir
+// lib/pipeline-config.ts pour le détail du changement de ciblage.
 const SECTEURS = [
+  "débouchage", "serrurier", "vitrier", "électricien", "chauffagiste",
+  "plombier", "dégâts des eaux", "humidité", "nuisibles",
   "avocat", "notaire", "comptable", "fiduciaire", "architecte",
   "dentiste", "kinésithérapeute", "ostéopathe", "vétérinaire",
   "photographe", "agence immobilière", "courtier en assurance",
   "coach", "traiteur", "salon de coiffure", "institut de beauté",
-  "menuisier", "électricien",
+  "menuisier",
 ]
 
 export { SECTEURS }

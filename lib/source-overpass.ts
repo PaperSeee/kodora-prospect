@@ -52,6 +52,16 @@ const SECTEUR_OSM: Record<string, string[]> = {
   "fleuriste": ['["shop"="florist"]'],
   "toiletteur": ['["shop"="pet_grooming"]'],
   "auto-école": ['["amenity"="driving_school"]'],
+  // Métiers d'urgence — ajoutés le 2026-09-02 pour le pivot Google Ads
+  // (voir lib/pipeline-config.ts). "débouchage" et "dégâts des eaux"
+  // n'ont pas de tag OSM dédié : ce sont des services de plombier
+  // spécialisés, réutilisent donc le tag "plombier" existant.
+  "débouchage": ['["craft"="plumber"]'],
+  "serrurier": ['["shop"="locksmith"]', '["craft"="locksmith"]'],
+  "vitrier": ['["craft"="glaziery"]', '["shop"="glaziery"]'],
+  "dégâts des eaux": ['["craft"="plumber"]'],
+  "humidité": ['["craft"="plumber"]'],
+  "nuisibles": ['["craft"="pest_control"]', '["office"="pest_control"]'],
 }
 
 // bbox Nominatim par ville, en cache pour la durée du process.
