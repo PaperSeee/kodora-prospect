@@ -28,12 +28,21 @@ export async function POST(req: NextRequest) {
       include: { prospect: true },
     })
     if (audit) {
-      // Récupère l'email s'il manque, et ne rétrograde jamais un lead déjà chaud/rdv.
-      const dejaChaud = ["lead_chaud", "rdv"].includes(audit.prospect.statut)
+      // Laisser un email est un signal vérifié (formulaire rempli), pas un
+      // proxy — contrairement aux bugs corrigés (clic, vue). On ne
+      // rétrograde jamais un statut déjà plus avancé dans le funnel.
+      const FUNNEL_ORDER = [
+        "a_contacter", "en_file", "contacte", "audit_vu", "cta_clique",
+        "a_repondu", "rdv", "signe",
+      ]
+      const currentIdx = FUNNEL_ORDER.indexOf(audit.prospect.statut)
+      const audituVuIdx = FUNNEL_ORDER.indexOf("audit_vu")
+      const dejaPlusAvance = currentIdx >= 0 && currentIdx >= audituVuIdx
+
       await prisma.prospect.update({
         where: { id: audit.prospectId },
         data: {
-          statut: dejaChaud ? audit.prospect.statut : "lead_chaud",
+          statut: dejaPlusAvance ? audit.prospect.statut : "audit_vu",
           email: audit.prospect.email ?? email,
         },
       })
@@ -45,7 +54,7 @@ export async function POST(req: NextRequest) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            content: `📩 **LEAD CHAUD** — ${audit.prospect.nom} a demandé son plan d'action par email.\nScore : ${audit.score}/100\nEmail laissé : ${email}\nTél : ${audit.prospect.telephone ?? "inconnu"}\nAudit : ${baseUrl}${audit.publicSlug}\nStatut → lead_chaud`,
+            content: `📩 **LEAD ENGAGÉ** — ${audit.prospect.nom} a demandé son plan d'action par email.\nScore : ${audit.score}/100\nEmail laissé : ${email}\nTél : ${audit.prospect.telephone ?? "inconnu"}\nAudit : ${baseUrl}${audit.publicSlug}\nStatut → audit_vu`,
           }),
         }).catch(() => {})
       }

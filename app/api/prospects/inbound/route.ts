@@ -33,7 +33,13 @@ export async function POST(req: NextRequest) {
       siteWeb: siteWeb || null,
       ville: ville || "Bruxelles",
       secteur: "Indépendant",
-      statut: "lead_chaud",
+      // "lead_chaud" n'existe plus dans le vocabulaire des statuts (voir
+      // audit KPI 2026-09-01) — mais ici, contrairement aux bugs corrigés,
+      // le signal EST vérifié : la personne a rempli un formulaire avec son
+      // propre email, ce n'est pas un proxy. audit_vu est le statut le plus
+      // proche qui reste honnête (engagé, coordonnées fournies, pas encore
+      // un rdv planifié).
+      statut: "audit_vu",
       score: scoreLokalSEO ?? 0,
       angle: "Lead inbound LokalSEO — a fait son propre audit",
       goldStar: true,
@@ -47,7 +53,7 @@ export async function POST(req: NextRequest) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        content: `⭐ **LEAD INBOUND** — ${nom} vient de faire son propre audit sur LokalSEO !\nEmail : ${email}\nSite : ${siteWeb || "non renseigné"}\nScore : ${scoreLokalSEO ?? "?"}/100\nStatut : lead_chaud`,
+        content: `⭐ **LEAD INBOUND** — ${nom} vient de faire son propre audit sur LokalSEO !\nEmail : ${email}\nSite : ${siteWeb || "non renseigné"}\nScore : ${scoreLokalSEO ?? "?"}/100\nStatut : audit_vu`,
       }),
     }).catch(() => {})
   }
