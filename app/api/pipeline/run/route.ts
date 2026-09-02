@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendPipelineReport, type EnvoiDetail } from "@/lib/pipeline-report"
-import { dailyCap, jitterDelay, RUN_TIME_BUDGET_MS, RELANCES_ACTIVES, RELANCES_SEULEMENT_APRES } from "@/lib/pipeline-config"
+import { dailyCap, jitterDelay, RUN_TIME_BUDGET_MS, RELANCES_ACTIVES, RELANCES_SEULEMENT_APRES, SEQUENCE_DELAIS_JOURS } from "@/lib/pipeline-config"
+import { adsEmail2Offre, adsEmail3Objection, adsEmail4Sortie } from "@/lib/email-templates"
 import { sendBrevoEmail } from "@/lib/send-brevo-email"
 import { shouldAlertOnRunOutcome, notifyPipelineFailure } from "@/lib/pipeline-alert"
 
@@ -124,25 +125,40 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── RELANCES J+3 ──
-    // Le reliquat du quota quotidien sert à relancer les prospects contactés
-    // il y a 3+ jours restés sans suite : une relance unique augmente
-    // typiquement le taux de réponse de moitié. Une seule relance par
-    // prospect (flag relancee), même vérif MX, même plafond quotidien.
+    // ── SÉQUENCE DE SUIVI (value ladder, J+3 / J+7 / J+12) ──
+    // Le reliquat du quota quotidien sert à envoyer le prochain message de
+    // la séquence aux prospects contactés qui n'ont pas répondu. Chaque
+    // message apporte une information autonome (voir email-templates.ts) —
+    // ce n'est pas une relance qui répète, c'est une suite. sequenceStep
+    // avance de 1 à chaque envoi (0 = email 1 seulement envoyé, 3 = les 4
+    // messages envoyés, plus rien à faire). Toute réponse (statut
+    // "a_repondu" posé manuellement) sort le prospect de cette requête —
+    // "contacte" seul y reste éligible.
     let relances = 0
     if (RELANCES_ACTIVES && !dryRun && sent < remaining && timeLeft() > 10_000) {
-      const cutoff = new Date(Date.now() - 3 * 86_400_000)
+      const now = Date.now()
       const aRelancer = await prisma.prospect.findMany({
-        // gte: ne relance QUE les contacts de la nouvelle campagne — les
-        // prospects des anciennes campagnes ne sont jamais recontactés.
-        where: { statut: "contacte", relancee: false, email: { not: null }, updatedAt: { lte: cutoff, gte: RELANCES_SEULEMENT_APRES } },
+        where: {
+          statut: "contacte",
+          sequenceStep: { lt: SEQUENCE_DELAIS_JOURS.length },
+          email: { not: null },
+          // gte: ne relance QUE les contacts de la nouvelle campagne — les
+          // prospects des anciennes campagnes ne sont jamais recontactés.
+          updatedAt: { gte: RELANCES_SEULEMENT_APRES },
+        },
         orderBy: { score: "desc" },
-        take: remaining - sent,
+        take: (remaining - sent) * 2, // marge : filtrées ensuite par délai exact
       })
 
-      eligible += aRelancer.length
+      const prets = aRelancer.filter((p) => {
+        const delaiJours = SEQUENCE_DELAIS_JOURS[p.sequenceStep]
+        const derniereActivite = (p.relanceeAt ?? p.updatedAt).getTime()
+        return now - derniereActivite >= delaiJours * 86_400_000
+      }).slice(0, remaining - sent)
 
-      for (const prospect of aRelancer) {
+      eligible += prets.length
+
+      for (const prospect of prets) {
         if (timeLeft() < 6000) break
 
         try {
@@ -155,8 +171,10 @@ export async function POST(req: NextRequest) {
             continue
           }
 
-          const { relanceEmailTemplate } = await import("@/lib/email-templates")
-          const { objet, corps } = relanceEmailTemplate(prospect.nom, prospect.secteur, prospect.emailOuvert)
+          const { objet, corps } =
+            prospect.sequenceStep === 0 ? adsEmail2Offre(prospect.ville)
+            : prospect.sequenceStep === 1 ? adsEmail3Objection(prospect.ville)
+            : adsEmail4Sortie()
 
           const result = await sendBrevoEmail({
             prospectId: prospect.id,
@@ -166,23 +184,23 @@ export async function POST(req: NextRequest) {
           })
 
           if (result.ok) {
-            // relancee/relanceeAt restent la trace de la relance elle-même ;
-            // le statut du prospect suit son propre cycle de vie normal
-            // (en_file → contacte via webhook), sendBrevoEmail s'en charge.
+            // Le statut du prospect suit son propre cycle de vie normal
+            // (en_file → contacte via webhook), sendBrevoEmail s'en charge —
+            // ici on avance seulement la position dans la séquence.
             await prisma.prospect.update({
               where: { id: prospect.id },
-              data: { relancee: true, relanceeAt: new Date() },
+              data: { sequenceStep: { increment: 1 }, relancee: true, relanceeAt: new Date() },
             })
             sent++
             relances++
-            envois.push({ nom: `${prospect.nom} (relance)`, email: prospect.email!, objet, corps })
+            envois.push({ nom: `${prospect.nom} (suivi ${prospect.sequenceStep + 2}/4)`, email: prospect.email!, objet, corps })
           } else {
             failed++
-            console.error("[pipeline] relance failed:", prospect.id, result.error)
+            console.error("[pipeline] suivi séquence failed:", prospect.id, result.error)
           }
         } catch (err) {
           failed++
-          console.error("[pipeline] relance error:", err)
+          console.error("[pipeline] suivi séquence error:", err)
         }
 
         if (timeLeft() > 6000) {

@@ -1,10 +1,16 @@
 import { prisma } from "@/lib/prisma"
-import { auditEmailTemplate, noSiteEmailTemplate, staticEmailTemplate } from "@/lib/email-templates"
-import { generateAudit } from "@/lib/audit-generator"
+import { adsEmail1Observation, noSiteEmailTemplate, staticEmailTemplate } from "@/lib/email-templates"
+import { diagnoseSite } from "@/lib/diagnose"
 import type { DiagnosticFlag } from "@/lib/diagnose"
 
 // Génération des emails, partagée entre la route /api/email/batch et le
 // pipeline auto. Appelée en direct (pas de fetch HTTP interne).
+//
+// Offre principale : Google Ads. Nécessite une page où envoyer le trafic
+// payant — un prospect sans site réel n'est pas un bon prospect Ads, il
+// passe en "ecarte_pas_de_site" au lieu de recevoir un email (l'offre site
+// vitrine reste possible mais n'est plus générée automatiquement en masse
+// ici ; voir noSiteEmailTemplate pour l'envoi manuel au cas par cas).
 
 const PLATEFORMES = ["doctoranytime", "zocdoc", "practo", "facebook.com", "instagram.com", "linkedin.com"]
 
@@ -26,42 +32,32 @@ export async function generateEmailBatch(opts: { regenerate?: boolean; take?: nu
     where,
     take,
     orderBy: { score: "desc" },
-    include: { audits: { orderBy: { generatedAt: "desc" }, take: 1 } },
   })
 
-  const baseUrl = process.env.PUBLIC_RAPPORT_BASE_URL || "https://lokalseo.be/rapport/"
   let count = 0
 
   for (const prospect of prospects) {
     try {
-      let objet: string
-      let corps: string
-
       if (!hasSiteReel(prospect.siteWeb)) {
-        const result = noSiteEmailTemplate(prospect.nom, prospect.secteur, prospect.ville, prospect.avis)
-        objet = result.objet
-        corps = result.corps
-      } else {
-        let audit = prospect.audits[0] ?? null
-        if (!audit) {
-          try { audit = await generateAudit(prospect.id) } catch { /* ignore */ }
-        }
-
-        if (audit) {
-          const auditUrl = `${baseUrl}${audit.publicSlug}`
-          const problemes = JSON.parse(audit.problemesJson ?? "[]") as { titre: string }[]
-          const result = auditEmailTemplate(prospect.nom, audit.score, problemes.length || 3, auditUrl, problemes[0]?.titre ?? null, prospect.secteur)
-          objet = result.objet
-          corps = result.corps
-        } else {
-          const diagData = prospect.diagnostic ? JSON.parse(prospect.diagnostic) : { flags: [] }
-          const flags: DiagnosticFlag[] = diagData.flags ?? []
-          const tmpl = staticEmailTemplate(prospect.nom, prospect.secteur, flags, prospect.avis, prospect.ville)
-          if (!tmpl) continue
-          objet = tmpl.objet
-          corps = tmpl.corps
-        }
+        // Aucune page où envoyer du trafic payant : écarté de l'offre Ads.
+        // On garde l'historique visible plutôt que de le laisser bloqué en
+        // "a_contacter" indéfiniment (voir Pipeline.tsx pour l'affichage).
+        await prisma.prospect.update({
+          where: { id: prospect.id },
+          data: { statut: "ecarte_pas_de_site" },
+        })
+        continue
       }
+
+      const diagData = prospect.diagnostic ? (JSON.parse(prospect.diagnostic) as { flags?: DiagnosticFlag[]; concurrentsPayants?: string[] }) : {}
+      const concurrentsPayants = diagData.concurrentsPayants ?? []
+
+      const { objet, corps } = adsEmail1Observation(prospect.nom, prospect.secteur, {
+        motCle: prospect.secteur,
+        commune: prospect.ville,
+        concurrent1: concurrentsPayants[0] ?? null,
+        concurrent2: concurrentsPayants[1] ?? null,
+      })
 
       await prisma.prospect.update({
         where: { id: prospect.id },
@@ -73,3 +69,19 @@ export async function generateEmailBatch(opts: { regenerate?: boolean; take?: nu
 
   return count
 }
+
+// Conservé pour l'envoi manuel ponctuel d'un site vitrine (voir
+// ProspectDetail.tsx) — plus utilisé par le batch automatique.
+export async function noSiteFallback(prospectId: number): Promise<{ objet: string; corps: string } | null> {
+  const prospect = await prisma.prospect.findUnique({ where: { id: prospectId } })
+  if (!prospect) return null
+  return noSiteEmailTemplate(prospect.nom, prospect.secteur, prospect.ville, prospect.avis)
+}
+
+// Repli si le diagnostic n'a produit aucun signal Ads exploitable — garde
+// staticEmailTemplate en réserve pour ne pas casser les appels existants.
+export function staticFallback(prospect: { nom: string; secteur: string; avis?: number | null; ville?: string | null }, flags: DiagnosticFlag[]) {
+  return staticEmailTemplate(prospect.nom, prospect.secteur, flags, prospect.avis, prospect.ville)
+}
+
+export { diagnoseSite }

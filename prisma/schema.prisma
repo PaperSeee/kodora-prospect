@@ -32,9 +32,14 @@ model Prospect {
   // Notes perso CRM
   notes       String?
 
-  // Tracking ouvertures et relances
+  // Tracking ouvertures et séquence de suivi (value ladder, 4 messages
+  // espacés J0/J+3/J+7/J+12 — voir lib/email-templates.ts). sequenceStep
+  // compte le dernier message envoyé (0 = seulement l'email 1, jusqu'à 3 =
+  // les 4 messages envoyés) ; relancee/relanceeAt gardent la date du
+  // dernier envoi de suivi pour calculer le prochain délai.
   emailOuvert   Boolean   @default(false)
   emailOuvertAt DateTime?
+  sequenceStep  Int       @default(0)
   relancee      Boolean   @default(false)
   relanceeAt    DateTime?
 
