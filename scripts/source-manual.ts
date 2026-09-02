@@ -10,18 +10,24 @@
 // quasiment plus rien après le 2e ou 3e run — tout le temps part à
 // re-scraper ce qui existe déjà avant d'atteindre du neuf.
 //
-// Usage :
+// Usage — IMPORTANT : npx résout "scripts/source-manual.ts" par rapport au
+// dossier depuis lequel tu lances la commande. Il faut être dans le dossier
+// du repo AVANT de lancer npx, sinon npx échoue à trouver le fichier avant
+// même la moindre ligne de ce code.
+//
+//   cd "/Users/paperhq/seo-run/sites/kodora-prospect"
 //   npx tsx scripts/source-manual.ts --objectif=500
 //   npx tsx scripts/source-manual.ts --objectif=500 --reset   (repart de Bruxelles)
 //
 // Nécessite TURSO_DATABASE_URL/TURSO_AUTH_TOKEN dans .env.local.
 
-import "dotenv/config"
+import path from "path"
 import { config } from "dotenv"
-config({ path: ".env.local" })
+// Résolu par rapport à CE FICHIER, pas au dossier depuis lequel npx a été
+// lancé — voir la note ci-dessus sur pourquoi le cwd importe déjà avant ça.
+config({ path: path.resolve(__dirname, "..", ".env.local") })
 
 import fs from "fs"
-import path from "path"
 import { sourceSecteur } from "../lib/source-prospects"
 import { generateEmailBatch } from "../lib/generate-emails"
 import { SECTEURS_ROTATION, COMMUNES, MAX_PAR_SECTEUR, DIAG_TIMEOUT_PIPELINE_MS } from "../lib/pipeline-config"
