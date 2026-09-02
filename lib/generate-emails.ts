@@ -7,11 +7,11 @@ import { secteurMeta } from "@/lib/pipeline-config"
 // Génération des emails, partagée entre la route /api/email/batch et le
 // pipeline auto. Appelée en direct (pas de fetch HTTP interne).
 //
-// Offre principale : Google Ads. Nécessite une page où envoyer le trafic
-// payant — un prospect sans site réel n'est pas un bon prospect Ads, il
-// passe en "ecarte_pas_de_site" au lieu de recevoir un email (l'offre site
-// vitrine reste possible mais n'est plus générée automatiquement en masse
-// ici ; voir noSiteEmailTemplate pour l'envoi manuel au cas par cas).
+// Offre principale : Google Ads, pour qui a une page où envoyer le trafic
+// payant. Un prospect sans site réel n'est pas un bon prospect Ads — il
+// reçoit à la place l'offre secondaire (site vitrine, noSiteEmailTemplate),
+// plutôt que d'être écarté sans email (réactivé le 2026-09-02 : autant
+// contacter ce volume avec l'offre adaptée que le jeter).
 
 const PLATEFORMES = ["doctoranytime", "zocdoc", "practo", "facebook.com", "instagram.com", "linkedin.com"]
 
@@ -27,7 +27,7 @@ export async function generateEmailBatch(opts: { regenerate?: boolean; take?: nu
 
   const where = regenerate
     ? { statut: "a_contacter", email: { not: null } }
-    : { OR: [{ emailCorps: null }, { emailCorps: "" }], statut: "a_contacter" }
+    : { OR: [{ emailCorps: null }, { emailCorps: "" }], statut: "a_contacter", email: { not: null } }
 
   const prospects = await prisma.prospect.findMany({
     where,
@@ -40,13 +40,14 @@ export async function generateEmailBatch(opts: { regenerate?: boolean; take?: nu
   for (const prospect of prospects) {
     try {
       if (!hasSiteReel(prospect.siteWeb)) {
-        // Aucune page où envoyer du trafic payant : écarté de l'offre Ads.
-        // On garde l'historique visible plutôt que de le laisser bloqué en
-        // "a_contacter" indéfiniment (voir Pipeline.tsx pour l'affichage).
+        // Aucune page où envoyer du trafic payant : offre vitrine à la
+        // place de l'offre Ads, pas d'écart silencieux (voir noSiteEmailTemplate).
+        const { objet, corps } = noSiteEmailTemplate(prospect.nom, prospect.secteur, prospect.ville, prospect.avis)
         await prisma.prospect.update({
           where: { id: prospect.id },
-          data: { statut: "ecarte_pas_de_site" },
+          data: { emailObjet: objet, emailCorps: corps },
         })
+        count++
         continue
       }
 

@@ -222,8 +222,8 @@ export function isPlateformUrl(url?: string | null): boolean {
 }
 
 const OBJETS_NO_SITE = [
-  (nom: string) => `Question rapide — ${nom}`,
-  (nom: string) => `${nom}, je n'ai pas trouvé votre site`,
+  (_nom: string) => `Question rapide sur votre site`,
+  (_nom: string) => `Je n'ai pas trouvé votre site`,
   (_nom: string) => `Une question rapide`,
 ]
 
@@ -234,24 +234,22 @@ export function noSiteEmailTemplate(
   avis?: number | null,
 ): { objet: string; corps: string } {
   const idx = nom.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % OBJETS_NO_SITE.length
-  const objet = OBJETS_NO_SITE[idx](nom).slice(0, 50)
-  const avisText = avis && avis > 0 ? ` — vous avez ${avis} avis Google` : ""
+  const objet = OBJETS_NO_SITE[idx](nom)
+  const avisText = avis && avis > 0 ? ` (vous avez ${avis} avis Google, plutôt bon signe)` : ""
+  const { secteurLabel } = secteurMeta(secteur)
 
   const corps = `Bonjour,
 
-Je cherchais des ${secteur} à ${ville} et je n'ai pas trouvé de site web pour ${nom}${avisText}.
+Je cherchais ${secteurLabel} à ${ville} et je suis tombé sur ${nom}${avisText}, mais pas de site — juste la fiche Google.
 
-Sans page où envoyer les gens, impossible de faire de la publicité ciblée efficacement — et beaucoup de clients cherchent en ligne avant d'appeler.
+C'est dommage, parce que pas mal de gens tapent le nom avant d'appeler, histoire de vérifier avant de se lancer. Sans rien à leur montrer, certains passent au suivant.
 
-Je crée des sites vitrines pour des ${secteur} en 7 jours, à partir de 299 €. Une fois en ligne, on peut aussi parler de vous rendre visible sur Google au bon moment.
+Je fais des sites simples pour ce genre de métier, rapide à mettre en place. Si vous voulez, je peux vous montrer à quoi ça ressemblerait pour vous, sans rien de votre côté.
 
-Si ça vous intéresse, répondez simplement à ce mail.
+Ça vous dit d'en discuter ?
 
-Bonne journée,
 Ilias — Kodora
-kodora.eu · ${CONTACT_PHONE}
-
-P.S. — Si ce mail ne vous intéresse pas, ignorez-le simplement.`
+${CONTACT_PHONE}, appel ou WhatsApp`
 
   return { objet, corps }
 }
