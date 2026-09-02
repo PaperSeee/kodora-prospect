@@ -10,22 +10,32 @@
 // quelqu'un devine ou trouve l'URL ngrok publique. Ne jamais lancer ce
 // serveur sans définir SOURCING_AGENT_KEY dans .env.local.
 //
-// Usage :
+// Usage — IMPORTANT : npx résout "scripts/sourcing-agent.ts" par rapport au
+// dossier depuis lequel tu lances la commande, pas par rapport à ce fichier.
+// Il faut donc être dans le dossier du repo AVANT de lancer npx — un simple
+// "cd" dans le script ne peut pas réparer ça, npx a déjà échoué à trouver
+// le fichier avant que la moindre ligne de ce code ne s'exécute.
+//
+//   cd "/Users/paperhq/seo-run/sites/kodora-prospect"
 //   npx tsx scripts/sourcing-agent.ts
 //   (dans un autre terminal) ngrok http 3999
-//   → copie l'URL https://xxxx.ngrok-free.app donnée par ngrok
+//   → copie l'URL affichée par ngrok (https://xxxx.ngrok-free.app ou .dev)
 //   → colle-la dans Vercel comme SOURCING_AGENT_URL (Settings → Environment
 //     Variables), avec SOURCING_AGENT_KEY = la même valeur que ton .env.local
 //
 // Le serveur reste UP tant que le terminal est ouvert. Ctrl+C pour arrêter.
 
-import "dotenv/config"
+import path from "path"
 import { config } from "dotenv"
-config({ path: ".env.local" })
+// Résolu par rapport à CE FICHIER, pas au dossier depuis lequel npx a été
+// lancé — sans ça, un simple "cd ~ && npx tsx <chemin relatif au repo>"
+// (qui échoue de toute façon, voir plus haut) laissait aussi ce chemin
+// pointer vers un .env.local inexistant si jamais npx trouvait le fichier
+// par un autre biais (ex. chemin absolu donné explicitement).
+config({ path: path.resolve(__dirname, "..", ".env.local") })
 
 import http from "http"
 import fs from "fs"
-import path from "path"
 import { sourceSecteur } from "../lib/source-prospects"
 import { generateEmailBatch } from "../lib/generate-emails"
 import { SECTEURS_ROTATION, COMMUNES, MAX_PAR_SECTEUR, DIAG_TIMEOUT_PIPELINE_MS } from "../lib/pipeline-config"
