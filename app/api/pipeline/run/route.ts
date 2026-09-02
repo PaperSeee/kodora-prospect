@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
 
           const { objet, corps } =
             prospect.sequenceStep === 0 ? adsEmail2Offre(prospect.ville)
-            : prospect.sequenceStep === 1 ? adsEmail3Objection(prospect.ville)
+            : prospect.sequenceStep === 1 ? adsEmail3Objection(prospect.secteur, prospect.ville)
             : adsEmail4Sortie()
 
           const result = await sendBrevoEmail({

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { adsEmail1Observation, noSiteEmailTemplate, staticEmailTemplate } from "@/lib/email-templates"
 import { diagnoseSite } from "@/lib/diagnose"
 import type { DiagnosticFlag } from "@/lib/diagnose"
+import { secteurMeta } from "@/lib/pipeline-config"
 
 // Génération des emails, partagée entre la route /api/email/batch et le
 // pipeline auto. Appelée en direct (pas de fetch HTTP interne).
@@ -53,7 +54,7 @@ export async function generateEmailBatch(opts: { regenerate?: boolean; take?: nu
       const concurrentsPayants = diagData.concurrentsPayants ?? []
 
       const { objet, corps } = adsEmail1Observation(prospect.nom, prospect.secteur, {
-        motCle: prospect.secteur,
+        motCle: secteurMeta(prospect.secteur).motCle,
         commune: prospect.ville,
         concurrent1: concurrentsPayants[0] ?? null,
         concurrent2: concurrentsPayants[1] ?? null,

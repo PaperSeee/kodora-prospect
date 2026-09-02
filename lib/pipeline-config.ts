@@ -8,18 +8,16 @@
 // évite de re-scraper toujours les mêmes et épuiser un secteur).
 //
 // ⚠️ RETARGETÉ le 2026-09-02 pour le pivot Google Ads (growth operator).
-// Les taux "LEAD CHAUD" mesurés le 2026-08-03 (comptable 33%, photographe
-// 28%, avocat 20%...) mesuraient la conversion sur l'ANCIENNE offre — site
-// vitrine à 299€. Ils ne disent rien de la conversion sur l'offre Ads,
-// et ne doivent plus servir de boussole : un bon prospect Ads n'est pas
-// "il n'a pas de beau site", c'est "chez lui, la recherche est urgente et
+// Aucune donnée de conversion fiable avant les campagnes de septembre 2026 —
+// les anciens taux mesuraient l'offre site vitrine (retirés des commentaires
+// le 2026-09-02 : c'étaient des statuts que le correctif KPI a démontrés
+// fabriqués — vues de page comptées comme leads, clics de robots comme RDV).
+// Le critère de ciblage n'est plus un taux mesuré mais le principe de
+// l'offre : un bon prospect Ads est "chez lui, la recherche est urgente et
 // la personne appelle le premier numéro qu'elle voit" — l'argument central
 // de la séquence email (voir lib/email-templates.ts). Ça exclut par
 // construction les professions de bureau (comptable, avocat, notaire) où
-// personne ne cherche "avocat urgence" un dimanche soir, et ça inclut les
-// métiers d'urgence que le backup 2026-08-03 avait classés "morts" pour
-// l'ancienne offre (serrurier 0%, artisans de chantier 0%) — un chiffre
-// qui mesurait le mauvais produit, pas le mauvais secteur.
+// personne ne cherche "avocat urgence" un dimanche soir.
 //
 // Repose sur lib/source-overpass.ts::SECTEUR_OSM pour le sourcing gratuit
 // (fallback sans clé Google Places) — débouchage, serrurier, vitrier,
@@ -32,6 +30,57 @@ export const SECTEURS_ROTATION: string[][] = [
   ["serrurier", "électricien", "plombier"],
   ["débouchage", "nuisibles", "dégâts des eaux"],
 ]
+
+// Métadonnées grammaticales par secteur, utilisées dans les templates email
+// plutôt qu'une interpolation brute de `secteur` — "des ${secteur}" produit
+// "des serrurier" (singulier, pas d'article correct) pour tout secteur qui
+// n'est pas déjà un nom pluriel en français. secteurLabel/secteurLabelNl
+// portent la formulation complète et grammaticalement correcte ; motCle est
+// le terme réellement tapé dans une recherche Google ("débouchage", pas
+// "des entreprises de débouchage").
+export interface SecteurMeta {
+  secteurLabel: string
+  secteurLabelNl: string
+  motCle: string
+}
+
+export const SECTEURS_META: Record<string, SecteurMeta> = {
+  "débouchage": { secteurLabel: "des entreprises de débouchage", secteurLabelNl: "ontstoppingsbedrijven", motCle: "débouchage" },
+  "serrurier": { secteurLabel: "des serruriers", secteurLabelNl: "slotenmakers", motCle: "serrurier urgence" },
+  "vitrier": { secteurLabel: "des vitriers", secteurLabelNl: "glaszetters", motCle: "vitrier urgence" },
+  "électricien": { secteurLabel: "des électriciens de dépannage", secteurLabelNl: "depannage-elektriciens", motCle: "électricien urgence" },
+  "chauffagiste": { secteurLabel: "des chauffagistes", secteurLabelNl: "verwarmingstechnici", motCle: "chauffagiste urgence" },
+  "plombier": { secteurLabel: "des plombiers", secteurLabelNl: "loodgieters", motCle: "plombier urgence" },
+  "dégâts des eaux": { secteurLabel: "des entreprises de dégâts des eaux", secteurLabelNl: "waterschadebedrijven", motCle: "dégâts des eaux" },
+  "humidité": { secteurLabel: "des entreprises de traitement de l'humidité", secteurLabelNl: "vochtbestrijdingsbedrijven", motCle: "traitement humidité" },
+  "nuisibles": { secteurLabel: "des entreprises de dératisation", secteurLabelNl: "ongediertebestrijders", motCle: "dératisation" },
+}
+
+// Renvoie les métadonnées d'un secteur, ou un repli grammaticalement sûr
+// (jamais "des {secteur}" brut) si le secteur n'est pas dans la table —
+// garde-fou pour un secteur ajouté à SECTEURS_ROTATION sans être ajouté ici.
+export function secteurMeta(secteur: string): SecteurMeta {
+  const meta = SECTEURS_META[secteur.toLowerCase().trim()]
+  if (meta) return meta
+  return { secteurLabel: `des professionnels du secteur ${secteur}`, secteurLabelNl: `${secteur}-bedrijven`, motCle: secteur }
+}
+
+// Valide que chaque secteur actif (présent dans la rotation auto) a bien
+// ses métadonnées — évite le repli générique en silence pour un secteur
+// qu'on sait pourtant utiliser en prod. Appelé au build (voir script "build"
+// dans package.json) : un secteur manquant fait échouer le build plutôt que
+// de laisser un "des professionnels du secteur X" partir à de vrais prospects.
+export function validateSecteursMeta(): void {
+  const manquants = new Set<string>()
+  for (const secteur of SECTEURS_ROTATION.flat()) {
+    if (!SECTEURS_META[secteur.toLowerCase().trim()]) manquants.add(secteur)
+  }
+  if (manquants.size > 0) {
+    throw new Error(
+      `SECTEURS_META incomplet : ${[...manquants].join(", ")} — ajoute secteurLabel/secteurLabelNl/motCle dans lib/pipeline-config.ts avant de sourcer ce secteur.`
+    )
+  }
+}
 
 // Séquence de suivi réactivée le 2026-09-02, sur un nouveau principe :
 // chaque message apporte une information neuve et autonome (value ladder),
@@ -46,12 +95,11 @@ export const RELANCES_SEULEMENT_APRES = new Date("2026-09-02")
 // pour qu'ils passent en tête de la file d'envoi (le pipeline envoie par
 // score décroissant).
 //
-// Vidé le 2026-09-02 : les anciens taux (comptable 33%, photographe 28%...)
-// mesuraient la conversion sur l'offre site vitrine, périmés pour l'offre
-// Ads. Pas de nouvelles données mesurées sur les métiers d'urgence — plutôt
-// qu'inventer une hiérarchie sans preuve, le bonus reste neutre (aucun
-// secteur favorisé) tant qu'un vrai backup n'a pas tourné sur la nouvelle
-// rotation. Rebrancher une fois 2-3 semaines de données réelles disponibles.
+// Aucune donnée de conversion fiable avant les campagnes de septembre 2026.
+// Vidé le 2026-09-02 plutôt que rerempli avec une hiérarchie inventée : le
+// bonus reste neutre (aucun secteur favorisé) tant qu'un vrai backup n'a pas
+// tourné sur la rotation actuelle. Rebrancher une fois 2-3 semaines de
+// données réelles disponibles.
 export const SECTEURS_PRIORITAIRES = new Set<string>([])
 
 // Communes ciblées, par ordre de priorité. On commence par Bruxelles (plus gros

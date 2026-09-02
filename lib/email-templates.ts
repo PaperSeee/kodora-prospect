@@ -1,4 +1,5 @@
 import type { DiagnosticFlag } from "./diagnose"
+import { secteurMeta } from "./pipeline-config"
 
 // ── Offre principale : Google Ads (growth operator) ──────────────
 // Séquence de 4 messages espacés (J0, J+3, J+7, J+12), chacun autonome —
@@ -25,26 +26,30 @@ export interface CompetitorInfo {
 // lien cliquable (le numéro reste en clair — cliquable automatiquement sur
 // mobile, mais ce n'est pas un lien qu'on insère nous-mêmes).
 //
-// Ton volontairement moins "copywriter" : phrases courtes, parfois
-// incomplètes, comme un vrai email tapé vite entre deux trucs — pas une
-// suite de formules bien tournées. Chaque message dit clairement ce que ça
-// change concrètement (le téléphone qui sonne), pas juste "être visible".
+// Réécrit le 2026-09-02 : ~70 mots (contre ~110 avant), objet en minuscules
+// sans accroche ("question rapide sur..." est l'un des objets de cold email
+// les plus vus, il déclenche le réflexe spam). "des ${secteur}" est remplacé
+// par secteurLabel — l'ancienne interpolation brute produisait "pour des
+// serrurier en Belgique" (singulier, sans article), une faute de grammaire
+// dans la première phrase envoyée à des centaines de patrons.
 
 export function adsEmail1Observation(nom: string, secteur: string, info: CompetitorInfo): { objet: string; corps: string } {
   const { motCle, commune, concurrent1, concurrent2 } = info
-  const objet = `question rapide sur ${commune}`.slice(0, 60)
+  const { secteurLabel } = secteurMeta(secteur)
+  const objet = `annonces google à ${commune}`.slice(0, 60)
 
   const ouverture = concurrent1 && concurrent2
-    ? `Petite observation : j'ai regardé qui paie pour apparaître sur « ${motCle} ${commune} ». Il y a ${concurrent1} et ${concurrent2}. Vous, non.`
-    : `Petite observation : j'ai regardé les annonces sur « ${motCle} ${commune} » cette semaine. Au moins un concurrent y est, pas vous.`
+    ? `J'ai regardé qui paie pour apparaître sur « ${motCle} ${commune} » cette semaine.\nIl y a ${concurrent1} et ${concurrent2}. Pas vous.`
+    : `J'ai regardé les annonces sur « ${motCle} ${commune} » cette semaine.\nAu moins un concurrent y est. Pas vous.`
 
   const corps = `Bonjour,
 
 ${ouverture}
 
-Concrètement, ça veut dire que pour un client qui cherche un ${secteur} maintenant, tout de suite, c'est eux qui décrochent le téléphone en premier. Pas vous.
+Sur ce genre de recherche, la personne appelle dans les cinq minutes —
+elle ne compare pas, elle prend le premier numéro qu'elle voit.
 
-Je m'occupe de ce genre de campagnes pour des ${secteur} en Belgique — et le principe est simple : quand quelqu'un a un besoin urgent, il ne compare pas trois devis, il appelle le premier numéro qu'il voit.
+Je gère ces campagnes pour ${secteurLabel} en Belgique.
 
 Vous avez déjà testé Google Ads, ou pas encore ?
 
@@ -80,13 +85,18 @@ Ou direct sur WhatsApp : ${waLink("Bonjour Ilias, je voudrais l'estimation Googl
 // Le message qui ne vend rien : il désamorce la méfiance la plus courante
 // contre Google Ads (campagne mal ciblée = budget brûlé pour rien).
 
-export function adsEmail3Objection(commune: string): { objet: string; corps: string } {
+// Correction 2026-09-02 : "prix {{métier}}" partait littéralement, jamais
+// résolu — aucun appelant ne passait le secteur, seule la commune. Prend
+// maintenant `secteur` et utilise motCle (le terme réellement tapé dans une
+// recherche, ex. "serrurier urgence") via secteurMeta.
+export function adsEmail3Objection(secteur: string, commune: string): { objet: string; corps: string } {
+  const { motCle } = secteurMeta(secteur)
   const objet = "pourquoi on me dit souvent non"
   const corps = `Bonjour,
 
 Ceux à qui j'écris me répondent souvent la même chose : "j'ai déjà essayé Google, j'ai payé pour rien".
 
-En général c'est un problème de ciblage, pas de Google Ads en soi. Une campagne mal réglée tourne sur des mots trop larges — quelqu'un qui tape juste "prix ${"{{métier}}"}" compare dix devis et ne rappelle personne. Quelqu'un qui tape "${"{{métier}}"} urgence ${commune}" a déjà décidé, il veut juste un numéro.
+En général c'est un problème de ciblage, pas de Google Ads en soi. Une campagne mal réglée tourne sur des mots trop larges — quelqu'un qui tape juste "prix ${motCle}" compare dix devis et ne rappelle personne. Quelqu'un qui tape "${motCle} ${commune}" a déjà décidé, il veut juste un numéro.
 
 C'est cette deuxième personne qu'on cible. Le reste, on ne le paie pas.
 
@@ -123,19 +133,21 @@ Ilias`
 
 export function adsEmail1ObservationNL(secteur: string, info: CompetitorInfo): { objet: string; corps: string } {
   const { motCle, commune, concurrent1, concurrent2 } = info
-  const objet = `korte vraag over ${commune}`.slice(0, 60)
+  const { secteurLabelNl } = secteurMeta(secteur)
+  const objet = `google-advertenties in ${commune}`.slice(0, 60)
 
   const opening = concurrent1 && concurrent2
-    ? `Kleine observatie: ik heb gekeken wie betaalt om boven te staan op « ${motCle} ${commune} ». ${concurrent1} en ${concurrent2} staan er. U niet.`
-    : `Kleine observatie: ik heb deze week de advertenties bekeken op « ${motCle} ${commune} ». Minstens één concurrent staat erbij, u niet.`
+    ? `Ik heb deze week gekeken wie betaalt om boven te staan op « ${motCle} ${commune} ».\n${concurrent1} en ${concurrent2} staan er. U niet.`
+    : `Ik heb deze week de advertenties bekeken op « ${motCle} ${commune} ».\nMinstens één concurrent staat erbij. U niet.`
 
   const corps = `Beste,
 
 ${opening}
 
-Concreet betekent dat: iemand die nu, dringend, een ${secteur} zoekt, belt eerst hén. Niet u.
+Bij zo'n zoekopdracht belt de klant binnen de vijf minuten —
+hij vergelijkt niet, hij neemt het eerste nummer dat hij ziet.
 
-Ik beheer dit soort campagnes voor ${secteur} in België — het principe is simpel: bij een dringende zoekopdracht vergelijkt niemand drie offertes, men belt het eerste nummer dat men ziet.
+Ik beheer deze campagnes voor ${secteurLabelNl} in België.
 
 Heeft u Google Ads al eens geprobeerd, of nog niet?
 
@@ -162,13 +174,14 @@ Of rechtstreeks via WhatsApp: ${waLink("Dag Ilias, ik wil graag de raming voor m
   return { objet, corps }
 }
 
-export function adsEmail3ObjectionNL(commune: string): { objet: string; corps: string } {
+export function adsEmail3ObjectionNL(secteur: string, commune: string): { objet: string; corps: string } {
+  const { motCle } = secteurMeta(secteur)
   const objet = "waarom men mij vaak nee zegt"
   const corps = `Beste,
 
 Wie mij antwoordt, zegt vaak hetzelfde: "ik heb Google al geprobeerd, geld weggegooid".
 
-Meestal is het een targetingprobleem, geen probleem met Google Ads zelf. Een slecht ingestelde campagne draait op te brede zoekwoorden — wie gewoon "prijs ${"{{beroep}}"}" typt vergelijkt tien offertes en belt niemand terug. Wie "${"{{beroep}}"} dringend ${commune}" typt, heeft al beslist, die wil gewoon een nummer.
+Meestal is het een targetingprobleem, geen probleem met Google Ads zelf. Een slecht ingestelde campagne draait op te brede zoekwoorden — wie gewoon "prijs ${motCle}" typt vergelijkt tien offertes en belt niemand terug. Wie "${motCle} ${commune}" typt, heeft al beslist, die wil gewoon een nummer.
 
 Op die tweede persoon mikken we. De rest betalen we niet.
 
