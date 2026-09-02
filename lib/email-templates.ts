@@ -24,27 +24,32 @@ export interface CompetitorInfo {
 // Le premier message doit atterrir en boîte principale : texte brut, sans
 // lien cliquable (le numéro reste en clair — cliquable automatiquement sur
 // mobile, mais ce n'est pas un lien qu'on insère nous-mêmes).
+//
+// Ton volontairement moins "copywriter" : phrases courtes, parfois
+// incomplètes, comme un vrai email tapé vite entre deux trucs — pas une
+// suite de formules bien tournées. Chaque message dit clairement ce que ça
+// change concrètement (le téléphone qui sonne), pas juste "être visible".
 
 export function adsEmail1Observation(nom: string, secteur: string, info: CompetitorInfo): { objet: string; corps: string } {
   const { motCle, commune, concurrent1, concurrent2 } = info
-  const objet = `annonces Google à ${commune}`.slice(0, 60)
+  const objet = `question rapide sur ${commune}`.slice(0, 60)
 
   const ouverture = concurrent1 && concurrent2
-    ? `Sur « ${motCle} ${commune} », deux entreprises paient pour s'afficher au-dessus des résultats naturels : ${concurrent1} et ${concurrent2}. Vous, vous êtes en dessous.`
-    : `J'ai regardé les annonces Google sur « ${motCle} ${commune} » cette semaine. Vous n'y apparaissez pas — au moins un de vos concurrents, si.`
+    ? `Petite observation : j'ai regardé qui paie pour apparaître sur « ${motCle} ${commune} ». Il y a ${concurrent1} et ${concurrent2}. Vous, non.`
+    : `Petite observation : j'ai regardé les annonces sur « ${motCle} ${commune} » cette semaine. Au moins un concurrent y est, pas vous.`
 
   const corps = `Bonjour,
 
 ${ouverture}
 
-Sur ces recherches-là, la personne appelle dans les cinq minutes. Elle ne compare pas trois devis — elle prend le premier numéro qu'elle voit.
+Concrètement, ça veut dire que pour un client qui cherche un ${secteur} maintenant, tout de suite, c'est eux qui décrochent le téléphone en premier. Pas vous.
 
-Je gère ce type de campagnes pour des ${secteur} en Belgique.
+Je m'occupe de ce genre de campagnes pour des ${secteur} en Belgique — et le principe est simple : quand quelqu'un a un besoin urgent, il ne compare pas trois devis, il appelle le premier numéro qu'il voit.
 
-Vous avez déjà essayé Google Ads, ou jamais ?
+Vous avez déjà testé Google Ads, ou pas encore ?
 
 Ilias — Kodora
-${CONTACT_PHONE} — appel ou WhatsApp`
+${CONTACT_PHONE}, appel ou WhatsApp`
 
   return { objet, corps }
 }
@@ -55,18 +60,18 @@ ${CONTACT_PHONE} — appel ou WhatsApp`
 // et sans engagement — l'information nouvelle du message, pas un rappel.
 
 export function adsEmail2Offre(commune: string): { objet: string; corps: string } {
-  const objet = `Re : annonces Google à ${commune}`.slice(0, 60)
+  const objet = `pour ${commune}`.slice(0, 60)
   const corps = `Bonjour,
 
-Une proposition concrète, plutôt qu'un rappel.
+Je reprends là où j'en étais : je peux regarder concrètement ce que ça donnerait chez vous — combien de personnes cherchent votre métier sur ${commune}, ce que ça coûterait par clic, le budget pour être devant.
 
-Je peux regarder ce que donnerait une campagne chez vous : volume de recherches sur ${commune}, prix du clic, budget nécessaire pour être visible sur vos mots-clés. Ça me prend vingt minutes et ça ne vous engage à rien.
+Ça me prend une vingtaine de minutes de mon côté, et ça ne vous engage à rien du tout — vous voyez juste les chiffres et vous décidez après.
 
-Je vous l'envoie ?
+Je m'y mets ?
 
 Ilias
 ${CONTACT_PHONE}
-WhatsApp direct : ${waLink("Bonjour Ilias, je voudrais l'estimation Google Ads pour ma zone")}`
+Ou direct sur WhatsApp : ${waLink("Bonjour Ilias, je voudrais l'estimation Google Ads pour ma zone")}`
 
   return { objet, corps }
 }
@@ -76,16 +81,16 @@ WhatsApp direct : ${waLink("Bonjour Ilias, je voudrais l'estimation Google Ads p
 // contre Google Ads (campagne mal ciblée = budget brûlé pour rien).
 
 export function adsEmail3Objection(commune: string): { objet: string; corps: string } {
-  const objet = "la raison n°1 pour laquelle on me dit non"
+  const objet = "pourquoi on me dit souvent non"
   const corps = `Bonjour,
 
-La plupart des patrons à qui j'écris me répondent la même chose : « j'ai déjà essayé Google, j'ai dépensé pour rien ».
+Ceux à qui j'écris me répondent souvent la même chose : "j'ai déjà essayé Google, j'ai payé pour rien".
 
-C'est presque toujours le même problème — la campagne tournait sur des mots-clés trop larges. Quelqu'un qui tape « prix ${"{{métier}}"} » compare et ne rappelle jamais. Quelqu'un qui tape « ${"{{métier}}"} urgence ${commune} » appelle dans la minute.
+En général c'est un problème de ciblage, pas de Google Ads en soi. Une campagne mal réglée tourne sur des mots trop larges — quelqu'un qui tape juste "prix ${"{{métier}}"}" compare dix devis et ne rappelle personne. Quelqu'un qui tape "${"{{métier}}"} urgence ${commune}" a déjà décidé, il veut juste un numéro.
 
-On ne paie que pour le second. C'est tout le travail de ciblage.
+C'est cette deuxième personne qu'on cible. Le reste, on ne le paie pas.
 
-Si vous vous êtes déjà fait avoir une fois, c'est justement le bon moment d'en reparler.
+Si ça vous est déjà arrivé, c'est justement le bon moment d'en reparler — deux minutes suffisent pour voir si ça change quelque chose chez vous.
 
 Ilias
 ${CONTACT_PHONE} · ${waLink("Bonjour Ilias")}`
@@ -99,14 +104,14 @@ ${CONTACT_PHONE} · ${waLink("Bonjour Ilias")}`
 // brûlé — toute réponse, même négative, arrête la séquence immédiatement.
 
 export function adsEmail4Sortie(): { objet: string; corps: string } {
-  const objet = "je clôture"
+  const objet = "dernier mot de ma part"
   const corps = `Bonjour,
 
-Dernier message de ma part, je ne veux pas encombrer votre boîte.
+Je n'insiste pas plus, je sais que la boîte mail déborde vite.
 
-Si le sujet revient un jour — une saison creuse, un concurrent qui vous passe devant — gardez le numéro : ${CONTACT_PHONE}, appel ou WhatsApp.
+Gardez juste le numéro quelque part — ${CONTACT_PHONE} — si un jour c'est calme, ou qu'un concurrent commence à vous prendre du terrain.
 
-Et si c'est simplement le mauvais moment, répondez « plus tard » : je reviens dans quelques mois, sans insister.
+Et si c'est juste pas le bon moment là maintenant, répondez "plus tard", je reviendrai sans forcer dans quelques mois.
 
 Bonne continuation,
 Ilias`
@@ -118,56 +123,56 @@ Ilias`
 
 export function adsEmail1ObservationNL(secteur: string, info: CompetitorInfo): { objet: string; corps: string } {
   const { motCle, commune, concurrent1, concurrent2 } = info
-  const objet = `Google-advertenties in ${commune}`.slice(0, 60)
+  const objet = `korte vraag over ${commune}`.slice(0, 60)
 
   const opening = concurrent1 && concurrent2
-    ? `Op « ${motCle} ${commune} » betalen twee bedrijven om boven de gewone resultaten te staan: ${concurrent1} en ${concurrent2}. U staat eronder.`
-    : `Ik heb deze week de Google-advertenties bekeken op « ${motCle} ${commune} ». U staat er niet tussen — minstens één concurrent wel.`
+    ? `Kleine observatie: ik heb gekeken wie betaalt om boven te staan op « ${motCle} ${commune} ». ${concurrent1} en ${concurrent2} staan er. U niet.`
+    : `Kleine observatie: ik heb deze week de advertenties bekeken op « ${motCle} ${commune} ». Minstens één concurrent staat erbij, u niet.`
 
   const corps = `Beste,
 
 ${opening}
 
-Bij zo'n zoekopdracht belt de klant binnen de vijf minuten. Hij vergelijkt niet — hij neemt het eerste nummer dat hij ziet.
+Concreet betekent dat: iemand die nu, dringend, een ${secteur} zoekt, belt eerst hén. Niet u.
 
-Ik beheer dit type campagnes voor ${secteur} in België.
+Ik beheer dit soort campagnes voor ${secteur} in België — het principe is simpel: bij een dringende zoekopdracht vergelijkt niemand drie offertes, men belt het eerste nummer dat men ziet.
 
-Heeft u al eens met Google-advertenties gewerkt, of nog nooit?
+Heeft u Google Ads al eens geprobeerd, of nog niet?
 
 Ilias — Kodora
-${CONTACT_PHONE} — bellen of WhatsApp`
+${CONTACT_PHONE}, bellen of WhatsApp`
 
   return { objet, corps }
 }
 
 export function adsEmail2OffreNL(commune: string): { objet: string; corps: string } {
-  const objet = `Re: Google-advertenties in ${commune}`.slice(0, 60)
+  const objet = `voor ${commune}`.slice(0, 60)
   const corps = `Beste,
 
-Een concreet voorstel, geen herinnering.
+Ik pik terug op waar ik gebleven was: ik kan concreet bekijken wat het bij u zou opleveren — hoeveel mensen zoeken uw beroep in ${commune}, wat een klik kost, welk budget nodig is om bovenaan te staan.
 
-Ik kan bekijken wat een campagne bij u zou opleveren: zoekvolume in ${commune}, prijs per klik, nodig budget om zichtbaar te zijn op uw zoekwoorden. Kost mij twintig minuten en verbindt u tot niets.
+Kost mij een twintigtal minuten, en verbindt u tot niets — u ziet gewoon de cijfers en beslist daarna.
 
-Zal ik het doorsturen?
+Zal ik ermee starten?
 
 Ilias
 ${CONTACT_PHONE}
-WhatsApp: ${waLink("Dag Ilias, ik wil graag de raming voor mijn zone")}`
+Of rechtstreeks via WhatsApp: ${waLink("Dag Ilias, ik wil graag de raming voor mijn zone")}`
 
   return { objet, corps }
 }
 
 export function adsEmail3ObjectionNL(commune: string): { objet: string; corps: string } {
-  const objet = "waarom men mij meestal nee zegt"
+  const objet = "waarom men mij vaak nee zegt"
   const corps = `Beste,
 
-De meeste zaakvoerders antwoorden mij hetzelfde: « ik heb Google al geprobeerd, geld weggegooid ».
+Wie mij antwoordt, zegt vaak hetzelfde: "ik heb Google al geprobeerd, geld weggegooid".
 
-Bijna altijd dezelfde oorzaak — de campagne draaide op te brede zoekwoorden. Wie « prijs ${"{{beroep}}"} » typt, vergelijkt en belt nooit terug. Wie « ${"{{beroep}}"} dringend ${commune} » typt, belt binnen de minuut.
+Meestal is het een targetingprobleem, geen probleem met Google Ads zelf. Een slecht ingestelde campagne draait op te brede zoekwoorden — wie gewoon "prijs ${"{{beroep}}"}" typt vergelijkt tien offertes en belt niemand terug. Wie "${"{{beroep}}"} dringend ${commune}" typt, heeft al beslist, die wil gewoon een nummer.
 
-We betalen enkel voor het tweede. Dat is het hele werk.
+Op die tweede persoon mikken we. De rest betalen we niet.
 
-Bent u al eens teleurgesteld geweest? Dan is dit net het juiste moment.
+Als u dit al is overkomen, is dit net het juiste moment om erover te praten — twee minuten volstaan om te zien of het bij u iets verandert.
 
 Ilias
 ${CONTACT_PHONE} · ${waLink("Dag Ilias")}`
@@ -176,14 +181,14 @@ ${CONTACT_PHONE} · ${waLink("Dag Ilias")}`
 }
 
 export function adsEmail4SortieNL(): { objet: string; corps: string } {
-  const objet = "ik sluit af"
+  const objet = "laatste woord van mij"
   const corps = `Beste,
 
-Laatste bericht, ik wil uw mailbox niet belasten.
+Ik dring niet verder aan, ik weet dat de mailbox snel volloopt.
 
-Komt het onderwerp ooit terug — een stil seizoen, een concurrent die u voorbijsteekt — hou dan het nummer bij: ${CONTACT_PHONE}, bellen of WhatsApp.
+Hou het nummer ergens bij — ${CONTACT_PHONE} — mocht het ooit rustiger worden, of een concurrent terrein winnen.
 
-En als het gewoon slecht uitkomt, antwoord « later »: ik kom over enkele maanden terug, zonder aan te dringen.
+En als het nu gewoon niet het juiste moment is, antwoord "later", dan kom ik binnen enkele maanden rustig terug.
 
 Veel succes,
 Ilias`
