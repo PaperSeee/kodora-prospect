@@ -70,6 +70,13 @@ describe("séquence de suivi — chaque message est autonome", () => {
   })
 })
 
+describe("l'email 1 dit clairement le bénéfice concret, pas juste 'être visible'", () => {
+  it("mentionne le téléphone qui sonne / qui décroche en premier — pas une formule abstraite", () => {
+    const { corps } = adsEmail1Observation("Test", "débouchage", { motCle: "débouchage", commune: "Ixelles" })
+    expect(corps.toLowerCase()).toMatch(/décroch|appelle|téléphone/)
+  })
+})
+
 describe("noSiteEmailTemplate — offre secondaire, site vitrine", () => {
   it("mentionne l'offre site vitrine et le nouveau numéro", () => {
     const { corps } = noSiteEmailTemplate("Test SA", "plombier", "Ixelles", 12)
