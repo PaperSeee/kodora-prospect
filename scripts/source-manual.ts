@@ -70,6 +70,13 @@ async function main() {
   let si = cursor.secteurIdx
   let lastCommune = ""
 
+  // Arrête proprement après une longue série de paires sans résultat —
+  // sinon, serveurs Overpass rate-limités (429/500/502/504, fréquent après
+  // un gros volume dans la même session) = boucle sur les 261 paires sans
+  // rien trouver, juste des pages d'erreurs sans jamais s'arrêter.
+  const MAX_ECHECS_CONSECUTIFS = 20
+  let echecsConsecutifs = 0
+
   while (sourced < objectif && pairesVues < totalPaires) {
     const commune = COMMUNES[ci % COMMUNES.length]
     const secteur = tousSecteurs[si % tousSecteurs.length]
@@ -86,7 +93,16 @@ async function main() {
       console.error(`  ✗ erreur sur ${secteur}/${commune}:`, err)
     }
     const nouveaux = sourced - avant
-    if (nouveaux > 0) console.log(`  + ${nouveaux} en ${secteur} (${sourced}/${objectif})`)
+    if (nouveaux > 0) {
+      console.log(`  + ${nouveaux} en ${secteur} (${sourced}/${objectif})`)
+      echecsConsecutifs = 0
+    } else {
+      echecsConsecutifs++
+      if (echecsConsecutifs >= MAX_ECHECS_CONSECUTIFS) {
+        console.log(`\n⚠️ ${MAX_ECHECS_CONSECUTIFS} paires de suite sans aucun résultat — probablement les serveurs Overpass gratuits rate-limités. Arrêt propre, réessaie dans 15-30 min.`)
+        break
+      }
+    }
 
     si++
     if (si % tousSecteurs.length === 0) ci++

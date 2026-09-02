@@ -135,6 +135,16 @@ const server = http.createServer(async (req, res) => {
     let si = cursor.secteurIdx
     let lastCommune = ""
 
+    // Arrête proprement après une longue série de paires sans le moindre
+    // résultat — sinon, quand les serveurs Overpass sont rate-limités
+    // (tous les miroirs en 429/500/502/504, ce qui arrive après un gros
+    // volume dans la même session), l'agent boucle sur les 261 paires
+    // commune×secteur sans jamais rien trouver ni s'arrêter, juste des
+    // pages d'erreurs sans qu'on sache que c'est un vrai problème externe.
+    const MAX_ECHECS_CONSECUTIFS = 20
+    let echecsConsecutifs = 0
+    let arretPourEchecs = false
+
     while (sourced < objectif && pairesVues < totalPaires) {
       const commune = COMMUNES[ci % COMMUNES.length]
       const secteur = tousSecteurs[si % tousSecteurs.length]
@@ -151,7 +161,20 @@ const server = http.createServer(async (req, res) => {
         send({ type: "progress", message: `  ✗ erreur ${secteur}/${commune}: ${String(err)}` })
       }
       const nouveaux = sourced - avant
-      if (nouveaux > 0) send({ type: "progress", message: `  + ${nouveaux} en ${secteur} (${sourced}/${objectif})` })
+      if (nouveaux > 0) {
+        send({ type: "progress", message: `  + ${nouveaux} en ${secteur} (${sourced}/${objectif})` })
+        echecsConsecutifs = 0
+      } else {
+        echecsConsecutifs++
+        if (echecsConsecutifs >= MAX_ECHECS_CONSECUTIFS) {
+          send({
+            type: "progress",
+            message: `⚠️ ${MAX_ECHECS_CONSECUTIFS} paires de suite sans aucun résultat — probablement les serveurs Overpass gratuits rate-limités (429) après un gros volume. Arrêt propre, réessaie dans 15-30 min.`,
+          })
+          arretPourEchecs = true
+          break
+        }
+      }
 
       // Avance le curseur (secteur d'abord, puis commune) et le sauve après
       // CHAQUE paire — si l'agent est arrêté en cours de route (Ctrl+C,
@@ -180,7 +203,7 @@ const server = http.createServer(async (req, res) => {
       where: { email: { not: null }, emailCorps: { not: null }, statut: "a_contacter" },
     })
 
-    send({ type: "done", sourced, generated, stockPret })
+    send({ type: "done", sourced, generated, stockPret, arretPourEchecs })
   } catch (err) {
     send({ type: "error", message: String(err) })
   } finally {

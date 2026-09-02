@@ -65,7 +65,7 @@ export function Dashboard() {
   const [agentStatus, setAgentStatus] = useState<{ configured: boolean; reachable: boolean } | null>(null)
   const [sourcing, setSourcing] = useState(false)
   const [sourcingLog, setSourcingLog] = useState<string[]>([])
-  const [sourcingResult, setSourcingResult] = useState<{ sourced: number; generated: number; stockPret: number } | null>(null)
+  const [sourcingResult, setSourcingResult] = useState<{ sourced: number; generated: number; stockPret: number; arretPourEchecs?: boolean } | null>(null)
 
   const loadStats = useCallback(async () => {
     const res = await fetch("/api/stats")
@@ -127,7 +127,7 @@ export function Dashboard() {
           if (evt.type === "progress") setSourcingLog((prev) => [...prev.slice(-40), evt.message])
           if (evt.type === "error") setSourcingLog((prev) => [...prev, `✗ ${evt.message}`])
           if (evt.type === "done") {
-            setSourcingResult({ sourced: evt.sourced, generated: evt.generated, stockPret: evt.stockPret })
+            setSourcingResult({ sourced: evt.sourced, generated: evt.generated, stockPret: evt.stockPret, arretPourEchecs: evt.arretPourEchecs })
             loadStats()
           }
         } catch {}
@@ -226,8 +226,9 @@ export function Dashboard() {
           {sourcing ? "Sourcing en cours..." : "🌍 Sourcer un gros volume"}
         </button>
         {sourcingResult && (
-          <p className="mt-2 text-xs text-emerald-400">
-            ✅ {sourcingResult.sourced} sourcés, {sourcingResult.generated} emails générés, {sourcingResult.stockPret} prêts à contacter.
+          <p className={`mt-2 text-xs ${sourcingResult.arretPourEchecs ? "text-amber-400" : "text-emerald-400"}`}>
+            {sourcingResult.arretPourEchecs ? "⚠️" : "✅"} {sourcingResult.sourced} sourcés, {sourcingResult.generated} emails générés, {sourcingResult.stockPret} prêts à contacter.
+            {sourcingResult.arretPourEchecs && " Arrêté tôt — serveurs de sourcing gratuits probablement saturés, réessaie dans 15-30 min."}
           </p>
         )}
         {sourcingLog.length > 0 && (
