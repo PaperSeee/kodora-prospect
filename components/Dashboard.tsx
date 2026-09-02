@@ -38,6 +38,8 @@ const STATUT_LABELS: Record<string, { label: string; color: string }> = {
   bloque: { label: "Bloqué", color: "bg-red-700" },
   spam: { label: "Signalé spam", color: "bg-red-800" },
   desabonne: { label: "Désabonné", color: "bg-zinc-700" },
+  // Pas de site réel = pas de page où envoyer le trafic payant Google Ads.
+  ecarte_pas_de_site: { label: "Écarté (pas de site)", color: "bg-neutral-700" },
   // Historique d'avant le correctif KPI (2026-09-01) — jamais confirmés par
   // un événement vérifié, voir le bandeau d'avertissement plus bas.
   contacte_non_verifie: { label: "Contacté (non vérifié)", color: "bg-blue-950" },

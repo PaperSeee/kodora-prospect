@@ -33,11 +33,14 @@ export const SECTEURS_ROTATION: string[][] = [
   ["photographe", "chauffagiste", "fiduciaire"],
 ]
 
-// Relances J+3 : DÉSACTIVÉES (décision du 2026-07-17) — plus aucune relance
-// automatique n'est envoyée. Le flag coupe le bloc relances du pipeline
-// quotidien ; la route /api/relance est elle aussi en pause.
-export const RELANCES_ACTIVES = false
-export const RELANCES_SEULEMENT_APRES = new Date("2026-07-04")
+// Séquence de suivi réactivée le 2026-09-02, sur un nouveau principe :
+// chaque message apporte une information neuve et autonome (value ladder),
+// aucun ne dit "je me permets de revenir vers vous". 4 messages, espacés
+// J0 → J+3 → J+7 → J+12. Toute réponse arrête la séquence immédiatement
+// (voir pipeline/run/route.ts, qui ne retouche jamais un prospect a_repondu).
+export const RELANCES_ACTIVES = true
+export const SEQUENCE_DELAIS_JOURS = [3, 7, 12] // délai depuis le PRÉCÉDENT message de la séquence
+export const RELANCES_SEULEMENT_APRES = new Date("2026-09-02")
 
 // Secteurs dont la conversion mesurée est forte : bonus de score au sourcing
 // pour qu'ils passent en tête de la file d'envoi (le pipeline envoie par

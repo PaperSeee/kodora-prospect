@@ -1,52 +1,206 @@
 import type { DiagnosticFlag } from "./diagnose"
 
-// ── Nouveau template funnel audit ────────────────────────────────
-// Utilisé quand un audit LokalSEO a été généré pour le prospect
+// ── Offre principale : Google Ads (growth operator) ──────────────
+// Séquence de 4 messages espacés (J0, J+3, J+7, J+12), chacun autonome —
+// aucun ne dit "je me permets de revenir vers vous". Le site vitrine reste
+// une offre secondaire (voir noSiteEmailTemplate / staticEmailTemplate plus
+// bas), proposée à qui n'a même pas de page où envoyer du trafic payant.
 
-const OBJETS_AUDIT = [
-  (nom: string) => `${nom}, votre site`,
-  (nom: string) => `Question rapide sur ${nom}`,
-  (nom: string) => `${nom} sur Google`,
-]
+export const CONTACT_PHONE = "0489 57 65 65"
+export const CONTACT_WHATSAPP_INTL = "32489576565" // format international, sans + ni 0
 
-// Met la première lettre en minuscule pour intégrer un titre dans une phrase
-// ("Site non optimisé pour mobile" → "site non optimisé pour mobile").
-function decapitalize(s: string): string {
-  return s.length > 0 ? s[0].toLowerCase() + s.slice(1) : s
+function waLink(text: string): string {
+  return `https://wa.me/${CONTACT_WHATSAPP_INTL}?text=${encodeURIComponent(text)}`
 }
 
-function pickAuditObjet(nom: string): string {
-  const idx = nom.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % OBJETS_AUDIT.length
-  const fn = OBJETS_AUDIT[idx]
-  const result = fn(nom)
-  // Tronquer à 50 chars
-  return result.length > 50 ? result.slice(0, 47) + "..." : result
+export interface CompetitorInfo {
+  motCle: string
+  commune: string
+  concurrent1?: string | null
+  concurrent2?: string | null
 }
+
+// ── Email 1 — l'observation (J0, aucun lien) ──────────────────────
+// Le premier message doit atterrir en boîte principale : texte brut, sans
+// lien cliquable (le numéro reste en clair — cliquable automatiquement sur
+// mobile, mais ce n'est pas un lien qu'on insère nous-mêmes).
+
+export function adsEmail1Observation(nom: string, secteur: string, info: CompetitorInfo): { objet: string; corps: string } {
+  const { motCle, commune, concurrent1, concurrent2 } = info
+  const objet = `annonces Google à ${commune}`.slice(0, 60)
+
+  const ouverture = concurrent1 && concurrent2
+    ? `Sur « ${motCle} ${commune} », deux entreprises paient pour s'afficher au-dessus des résultats naturels : ${concurrent1} et ${concurrent2}. Vous, vous êtes en dessous.`
+    : `J'ai regardé les annonces Google sur « ${motCle} ${commune} » cette semaine. Vous n'y apparaissez pas — au moins un de vos concurrents, si.`
+
+  const corps = `Bonjour,
+
+${ouverture}
+
+Sur ces recherches-là, la personne appelle dans les cinq minutes. Elle ne compare pas trois devis — elle prend le premier numéro qu'elle voit.
+
+Je gère ce type de campagnes pour des ${secteur} en Belgique.
+
+Vous avez déjà essayé Google Ads, ou jamais ?
+
+Ilias — Kodora
+${CONTACT_PHONE} — appel ou WhatsApp`
+
+  return { objet, corps }
+}
+
+// ── Email 2 — l'offre concrète (J+3) ──────────────────────────────
+// Pas de chiffre de campagne cité comme preuve : on n'en a pas de vérifiés
+// pour ce secteur/cette zone. L'offre est l'estimation elle-même, gratuite
+// et sans engagement — l'information nouvelle du message, pas un rappel.
+
+export function adsEmail2Offre(commune: string): { objet: string; corps: string } {
+  const objet = `Re : annonces Google à ${commune}`.slice(0, 60)
+  const corps = `Bonjour,
+
+Une proposition concrète, plutôt qu'un rappel.
+
+Je peux regarder ce que donnerait une campagne chez vous : volume de recherches sur ${commune}, prix du clic, budget nécessaire pour être visible sur vos mots-clés. Ça me prend vingt minutes et ça ne vous engage à rien.
+
+Je vous l'envoie ?
+
+Ilias
+${CONTACT_PHONE}
+WhatsApp direct : ${waLink("Bonjour Ilias, je voudrais l'estimation Google Ads pour ma zone")}`
+
+  return { objet, corps }
+}
+
+// ── Email 3 — l'objection traitée (J+7) ───────────────────────────
+// Le message qui ne vend rien : il désamorce la méfiance la plus courante
+// contre Google Ads (campagne mal ciblée = budget brûlé pour rien).
+
+export function adsEmail3Objection(commune: string): { objet: string; corps: string } {
+  const objet = "la raison n°1 pour laquelle on me dit non"
+  const corps = `Bonjour,
+
+La plupart des patrons à qui j'écris me répondent la même chose : « j'ai déjà essayé Google, j'ai dépensé pour rien ».
+
+C'est presque toujours le même problème — la campagne tournait sur des mots-clés trop larges. Quelqu'un qui tape « prix ${"{{métier}}"} » compare et ne rappelle jamais. Quelqu'un qui tape « ${"{{métier}}"} urgence ${commune} » appelle dans la minute.
+
+On ne paie que pour le second. C'est tout le travail de ciblage.
+
+Si vous vous êtes déjà fait avoir une fois, c'est justement le bon moment d'en reparler.
+
+Ilias
+${CONTACT_PHONE} · ${waLink("Bonjour Ilias")}`
+
+  return { objet, corps }
+}
+
+// ── Email 4 — la sortie propre (J+12) ─────────────────────────────
+// Dernier message de la séquence : pas de fausse urgence, pas de "dernière
+// chance". Le "plus tard" crée un segment réutilisable plutôt qu'un contact
+// brûlé — toute réponse, même négative, arrête la séquence immédiatement.
+
+export function adsEmail4Sortie(): { objet: string; corps: string } {
+  const objet = "je clôture"
+  const corps = `Bonjour,
+
+Dernier message de ma part, je ne veux pas encombrer votre boîte.
+
+Si le sujet revient un jour — une saison creuse, un concurrent qui vous passe devant — gardez le numéro : ${CONTACT_PHONE}, appel ou WhatsApp.
+
+Et si c'est simplement le mauvais moment, répondez « plus tard » : je reviens dans quelques mois, sans insister.
+
+Bonne continuation,
+Ilias`
+
+  return { objet, corps }
+}
+
+// ── Néerlandais — traduction idiomatique, pas mot à mot ───────────
+
+export function adsEmail1ObservationNL(secteur: string, info: CompetitorInfo): { objet: string; corps: string } {
+  const { motCle, commune, concurrent1, concurrent2 } = info
+  const objet = `Google-advertenties in ${commune}`.slice(0, 60)
+
+  const opening = concurrent1 && concurrent2
+    ? `Op « ${motCle} ${commune} » betalen twee bedrijven om boven de gewone resultaten te staan: ${concurrent1} en ${concurrent2}. U staat eronder.`
+    : `Ik heb deze week de Google-advertenties bekeken op « ${motCle} ${commune} ». U staat er niet tussen — minstens één concurrent wel.`
+
+  const corps = `Beste,
+
+${opening}
+
+Bij zo'n zoekopdracht belt de klant binnen de vijf minuten. Hij vergelijkt niet — hij neemt het eerste nummer dat hij ziet.
+
+Ik beheer dit type campagnes voor ${secteur} in België.
+
+Heeft u al eens met Google-advertenties gewerkt, of nog nooit?
+
+Ilias — Kodora
+${CONTACT_PHONE} — bellen of WhatsApp`
+
+  return { objet, corps }
+}
+
+export function adsEmail2OffreNL(commune: string): { objet: string; corps: string } {
+  const objet = `Re: Google-advertenties in ${commune}`.slice(0, 60)
+  const corps = `Beste,
+
+Een concreet voorstel, geen herinnering.
+
+Ik kan bekijken wat een campagne bij u zou opleveren: zoekvolume in ${commune}, prijs per klik, nodig budget om zichtbaar te zijn op uw zoekwoorden. Kost mij twintig minuten en verbindt u tot niets.
+
+Zal ik het doorsturen?
+
+Ilias
+${CONTACT_PHONE}
+WhatsApp: ${waLink("Dag Ilias, ik wil graag de raming voor mijn zone")}`
+
+  return { objet, corps }
+}
+
+export function adsEmail3ObjectionNL(commune: string): { objet: string; corps: string } {
+  const objet = "waarom men mij meestal nee zegt"
+  const corps = `Beste,
+
+De meeste zaakvoerders antwoorden mij hetzelfde: « ik heb Google al geprobeerd, geld weggegooid ».
+
+Bijna altijd dezelfde oorzaak — de campagne draaide op te brede zoekwoorden. Wie « prijs ${"{{beroep}}"} » typt, vergelijkt en belt nooit terug. Wie « ${"{{beroep}}"} dringend ${commune} » typt, belt binnen de minuut.
+
+We betalen enkel voor het tweede. Dat is het hele werk.
+
+Bent u al eens teleurgesteld geweest? Dan is dit net het juiste moment.
+
+Ilias
+${CONTACT_PHONE} · ${waLink("Dag Ilias")}`
+
+  return { objet, corps }
+}
+
+export function adsEmail4SortieNL(): { objet: string; corps: string } {
+  const objet = "ik sluit af"
+  const corps = `Beste,
+
+Laatste bericht, ik wil uw mailbox niet belasten.
+
+Komt het onderwerp ooit terug — een stil seizoen, een concurrent die u voorbijsteekt — hou dan het nummer bij: ${CONTACT_PHONE}, bellen of WhatsApp.
+
+En als het gewoon slecht uitkomt, antwoord « later »: ik kom over enkele maanden terug, zonder aan te dringen.
+
+Veel succes,
+Ilias`
+
+  return { objet, corps }
+}
+
+// ── Offre secondaire : site vitrine (aucune page où envoyer du trafic) ──
+// Un prospect sans site n'est pas un bon prospect Ads — il n'a nulle part où
+// envoyer le clic payant. On lui propose d'abord le site ; l'offre Ads vient
+// naturellement après, une fois qu'il en a un.
 
 const PLATEFORMES_LABELS = ["doctoranytime", "zocdoc", "practo", "facebook.com", "instagram.com", "linkedin.com"]
 
 export function isPlateformUrl(url?: string | null): boolean {
   if (!url) return false
   return PLATEFORMES_LABELS.some(p => url.toLowerCase().includes(p))
-}
-
-// Accroche d'une phrase, spécifique au métier, insérée dans les emails.
-// Basée sur les secteurs qui convertissent le mieux (mesuré) : le message
-// parle du problème métier concret, pas de "présence en ligne" générique.
-const SECTEUR_HOOKS: Record<string, string> = {
-  "comptable": "Quand un indépendant cherche un nouveau comptable, il compare 3 ou 4 cabinets sur Google avant d'appeler — celui qui inspire le plus confiance en ligne gagne le dossier.",
-  "fiduciaire": "Quand un indépendant cherche une fiduciaire, il compare 3 ou 4 cabinets sur Google avant d'appeler — celui qui inspire le plus confiance en ligne gagne le dossier.",
-  "avocat": "Un justiciable qui cherche un avocat compare systématiquement plusieurs cabinets en ligne — et la première impression numérique pèse autant que la spécialité.",
-  "notaire": "Pour un achat immobilier ou une succession, les particuliers choisissent de plus en plus leur notaire sur Google — la clarté de votre présence en ligne fait la différence.",
-  "photographe": "Pour un photographe, le site EST le portfolio : un site lent ou daté fait douter de la qualité des images avant même de les avoir vues.",
-  "traiteur": "Un client qui organise un événement compare les traiteurs sur photos et avis avant tout contact — votre vitrine en ligne décide si le devis vous arrive ou pas.",
-  "restaurant": "Vos clients regardent le menu, les photos et les avis en ligne avant de réserver — chaque friction sur votre présence web est une table qui part ailleurs.",
-  "vétérinaire": "Un nouveau propriétaire d'animal choisit son vétérinaire sur Google, à la proximité et aux avis — la fiche et le site font le tri avant le premier appel.",
-  "chauffagiste": "Entre l'entretien annuel et les pannes d'hiver, vos clients vous cherchent sur Google au moment précis du besoin — être visible et rassurant à cet instant fait le carnet de commandes.",
-}
-
-export function secteurHook(secteur: string): string | null {
-  return SECTEUR_HOOKS[secteur.toLowerCase().trim()] ?? null
 }
 
 const OBJETS_NO_SITE = [
@@ -69,190 +223,27 @@ export function noSiteEmailTemplate(
 
 Je cherchais des ${secteur} à ${ville} et je n'ai pas trouvé de site web pour ${nom}${avisText}.
 
-Beaucoup de clients cherchent en ligne avant d'appeler — sans site, ces demandes vont chez vos confrères.
+Sans page où envoyer les gens, impossible de faire de la publicité ciblée efficacement — et beaucoup de clients cherchent en ligne avant d'appeler.
 
-Je crée des sites vitrines pour des ${secteur} en 7 jours, à partir de 299 €. Si ça vous intéresse, répondez simplement à ce mail.
+Je crée des sites vitrines pour des ${secteur} en 7 jours, à partir de 299 €. Une fois en ligne, on peut aussi parler de vous rendre visible sur Google au bon moment.
+
+Si ça vous intéresse, répondez simplement à ce mail.
 
 Bonne journée,
 Ilias — Kodora
-kodora.eu · +32 451 05 33 70
+kodora.eu · ${CONTACT_PHONE}
 
 P.S. — Si ce mail ne vous intéresse pas, ignorez-le simplement.`
 
   return { objet, corps }
 }
 
-export function auditEmailTemplate(
-  nom: string,
-  score: number,
-  nbProblemes: number,
-  auditUrl: string,
-  premierProbleme?: string | null,
-  secteur?: string,
-): { objet: string; corps: string; html: string } {
-  const objet = pickAuditObjet(nom)
-  const hook = secteur ? secteurHook(secteur) : null
-
-  // Phrase de preuve concrète : cite le 1er problème détecté pour montrer que
-  // l'audit est réel et spécifique (et non un mailing générique).
-  const preuve = premierProbleme && premierProbleme.trim()
-    ? ` J'ai notamment relevé : ${decapitalize(premierProbleme.trim())}.`
-    : ""
-
-  const corps = `Bonjour,
-
-J'ai fait un audit rapide de la présence en ligne de ${nom} ce matin.
-
-Score actuel : ${score}/100 — ${nbProblemes} axe${nbProblemes > 1 ? "s" : ""} prioritaire${nbProblemes > 1 ? "s" : ""} identifié${nbProblemes > 1 ? "s" : ""}.${preuve}
-${hook ? `\n${hook}\n` : ""}
-Voir le rapport complet (sans inscription) :
-${auditUrl}
-
-Aucune obligation, juste un état des lieux.
-
-Bonne journée,
-Ilias — Kodora
-
-P.S. — Si ce mail ne vous intéresse pas, ignorez-le simplement.`
-
-  const scoreColor = score >= 70 ? "#16a34a" : score >= 45 ? "#d97706" : "#dc2626"
-
-  const html = `<!DOCTYPE html>
-<html lang="fr">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 16px">
-    <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;max-width:560px;width:100%">
-        <!-- Header -->
-        <tr>
-          <td style="background:#0f172a;padding:24px 32px">
-            <p style="margin:0;color:#ffffff;font-size:18px;font-weight:700;letter-spacing:-0.3px">Kodora</p>
-            <p style="margin:4px 0 0;color:#94a3b8;font-size:12px">Présence web pour professionnels belges</p>
-          </td>
-        </tr>
-        <!-- Body -->
-        <tr>
-          <td style="padding:32px">
-            <p style="margin:0 0 16px;color:#1e293b;font-size:15px;line-height:1.6">Bonjour,</p>
-            <p style="margin:0 0 ${preuve ? "12px" : "24px"};color:#334155;font-size:15px;line-height:1.6">
-              J'ai fait un audit rapide de la présence en ligne de <strong>${nom}</strong> ce matin.
-            </p>
-            ${preuve ? `<p style="margin:0 0 24px;color:#334155;font-size:15px;line-height:1.6">${preuve.trim()}</p>` : ""}
-            ${hook ? `<p style="margin:0 0 24px;color:#334155;font-size:15px;line-height:1.6">${hook}</p>` : ""}
-            <!-- Score box -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:24px">
-              <tr>
-                <td style="padding:20px 24px">
-                  <p style="margin:0 0 4px;color:#64748b;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px">Score de visibilité</p>
-                  <p style="margin:0;font-size:36px;font-weight:800;color:${scoreColor}">${score}<span style="font-size:18px;color:#94a3b8">/100</span></p>
-                  <p style="margin:8px 0 0;color:#475569;font-size:13px">
-                    ${nbProblemes} axe${nbProblemes > 1 ? "s" : ""} prioritaire${nbProblemes > 1 ? "s" : ""} identifié${nbProblemes > 1 ? "s" : ""} — détail complet dans le rapport.
-                  </p>
-                </td>
-              </tr>
-            </table>
-            <!-- CTA Button -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
-              <tr>
-                <td align="center">
-                  <a href="${auditUrl}" target="_blank"
-                    style="display:inline-block;background:#2563eb;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:6px;letter-spacing:-0.2px">
-                    Voir les ${nbProblemes} points à corriger →
-                  </a>
-                </td>
-              </tr>
-              <tr>
-                <td align="center" style="padding-top:10px">
-                  <p style="margin:0;color:#94a3b8;font-size:11px">Sans inscription · Prend 30 secondes</p>
-                </td>
-              </tr>
-            </table>
-            <p style="margin:0 0 24px;color:#334155;font-size:14px;line-height:1.6">
-              Aucune obligation — c'est juste un état des lieux.
-            </p>
-            <p style="margin:0;color:#334155;font-size:14px;line-height:1.6">
-              Bonne journée,<br>
-              <strong>Ilias</strong> — Kodora<br>
-              <a href="https://kodora.eu" style="color:#2563eb;text-decoration:none">kodora.eu</a> · +32 451 05 33 70
-            </p>
-          </td>
-        </tr>
-        <!-- Footer -->
-        <tr>
-          <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 32px">
-            <p style="margin:0;color:#94a3b8;font-size:11px;line-height:1.6">
-              P.S. — Si ce mail ne vous intéresse pas, ignorez-le simplement.
-            </p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`
-
-  return { objet, corps, html }
-}
-
-export function auditWarmFollowUpTemplate(
-  nom: string,
-  auditUrl: string,
-): { objet: string; corps: string } {
-  return {
-    objet: "Une question sur votre audit ?",
-    corps: `Bonjour,
-
-Vous avez jeté un œil à votre audit — merci. Le point le plus rentable à corriger en premier dépend de votre situation : je peux vous dire lequel attaquer en deux lignes si vous me répondez.
-
-Et si vous voulez qu'on s'en occupe, on corrige l'ensemble en 7 jours (dès 299 €).
-
-Le rapport reste accessible ici : ${auditUrl}
-
-Bonne journée,
-Ilias — Kodora
-
-P.S. — Si vous n'êtes pas intéressé, ignorez simplement ce message.`,
-  }
-}
-
-
-
 // Objets variés pour éviter la répétition qui déclenche les filtres spam
-const OBJETS_SITE_ABSENT = [
-  "Une question rapide",
-  "J'ai cherché votre site",
-  "Petite question",
-  "Je n'ai pas trouvé votre site",
-]
-
-const OBJETS_SITE_HS = [
-  "Votre site semble avoir un problème",
-  "J'ai essayé de visiter votre site",
-  "Petit souci sur votre site",
-  "Votre site ne répond plus",
-]
-
-const OBJETS_MOBILE = [
-  "Un détail sur votre site",
-  "J'ai regardé votre site sur mobile",
-  "Petite observation",
-  "Votre site et les smartphones",
-]
-
-const OBJETS_DATE = [
-  "Une observation sur votre site",
-  "J'ai regardé votre site",
-  "Votre site mérite une mise à jour",
-  "Petit retour sur votre présence web",
-]
-
-const OBJETS_LENT = [
-  "Votre site charge lentement",
-  "J'ai testé votre site",
-  "Un point technique sur votre site",
-  "Performance de votre site",
-]
+const OBJETS_SITE_ABSENT = ["Une question rapide", "J'ai cherché votre site", "Petite question", "Je n'ai pas trouvé votre site"]
+const OBJETS_SITE_HS = ["Votre site semble avoir un problème", "J'ai essayé de visiter votre site", "Petit souci sur votre site", "Votre site ne répond plus"]
+const OBJETS_MOBILE = ["Un détail sur votre site", "J'ai regardé votre site sur mobile", "Petite observation", "Votre site et les smartphones"]
+const OBJETS_DATE = ["Une observation sur votre site", "J'ai regardé votre site", "Votre site mérite une mise à jour", "Petit retour sur votre présence web"]
+const OBJETS_LENT = ["Votre site charge lentement", "J'ai testé votre site", "Un point technique sur votre site", "Performance de votre site"]
 
 function pick(arr: string[], nom: string): string {
   // Déterministe selon le nom pour éviter l'aléatoire pur (reproductible)
@@ -288,7 +279,7 @@ Si ça vous intéresse, répondez simplement à ce mail — je vous montre des e
 
 Ilias
 Kodora — kodora.eu
-+32 451 05 33 70
+${CONTACT_PHONE}
 
 Pour ne plus recevoir mes messages, répondez STOP.`
 
@@ -304,7 +295,7 @@ Je m'appelle Ilias, je travaille avec des ${secteur} pour améliorer leur prése
 
 Ilias
 Kodora — kodora.eu
-+32 451 05 33 70
+${CONTACT_PHONE}
 
 Pour ne plus recevoir mes messages, répondez STOP.`
 
@@ -320,7 +311,7 @@ Je m'appelle Ilias, je crée des sites optimisés mobile pour des ${secteur}. R�
 
 Ilias
 Kodora — kodora.eu
-+32 451 05 33 70
+${CONTACT_PHONE}
 
 Pour ne plus recevoir mes messages, répondez STOP.`
 
@@ -337,7 +328,7 @@ Si ça vous intéresse, répondez simplement à ce mail.
 
 Ilias
 Kodora — kodora.eu
-+32 451 05 33 70
+${CONTACT_PHONE}
 
 Pour ne plus recevoir mes messages, répondez STOP.`
 
@@ -351,18 +342,13 @@ Je m'appelle Ilias, je crée des sites rapides et optimisés pour des ${secteur}
 
 Ilias
 Kodora — kodora.eu
-+32 451 05 33 70
+${CONTACT_PHONE}
 
 Pour ne plus recevoir mes messages, répondez STOP.`
 
   } else {
     // Fallback générique (PAS_HTTPS, flags inconnus, ou aucun flag)
-    const objets = [
-      "Une observation sur votre présence web",
-      "J'ai regardé votre site",
-      "Petite question sur votre site",
-      "Un retour rapide sur votre site",
-    ]
+    const objets = ["Une observation sur votre présence web", "J'ai regardé votre site", "Petite question sur votre site", "Un retour rapide sur votre site"]
     objet = pick(objets, nom)
     corps = `Bonjour,
 
@@ -372,48 +358,10 @@ Je m'appelle Ilias, je travaille avec des ${secteur} pour améliorer leur visibi
 
 Ilias
 Kodora — kodora.eu
-+32 451 05 33 70
+${CONTACT_PHONE}
 
 Pour ne plus recevoir mes messages, répondez STOP.`
   }
-
-  return { objet, corps }
-}
-
-export function relanceEmailTemplate(
-  nom: string,
-  secteur: string,
-  emailOuvert: boolean
-): { objet: string; corps: string } {
-  const objets = emailOuvert
-    ? ["Mon message de la semaine dernière", "Je reviens vers vous", "Suite à mon message"]
-    : ["Juste au cas où", "Je me permets de revenir", "Un dernier mot"]
-
-  const objet = pick(objets, nom)
-
-  const corps = emailOuvert
-    ? `Bonjour,
-
-Je reviens vers vous suite à mon message de la semaine dernière.
-
-Si vous avez eu l'occasion de le lire mais que le timing n'était pas bon, je comprends tout à fait. Je reste disponible si vous avez des questions sur votre site.
-
-Ilias
-Kodora — kodora.eu
-+32 451 05 33 70
-
-Pour ne plus recevoir mes messages, répondez STOP.`
-    : `Bonjour,
-
-Je me permets de revenir vers vous — mon premier message s'est peut-être perdu.
-
-En tant que ${secteur}, votre visibilité en ligne a un impact direct sur vos nouveaux clients. Si vous voulez qu'on en parle 10 minutes, répondez simplement à ce mail.
-
-Ilias
-Kodora — kodora.eu
-+32 451 05 33 70
-
-Pour ne plus recevoir mes messages, répondez STOP.`
 
   return { objet, corps }
 }
