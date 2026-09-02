@@ -59,16 +59,82 @@ export function Dashboard() {
   const [sendProgress, setSendProgress] = useState<{ done: number; total: number } | null>(null)
   const [sentIds, setSentIds] = useState<Set<number>>(new Set())
 
+  // Agent de sourcing local (scripts/sourcing-agent.ts) — tourne sur la
+  // machine d'Ilias, hors du plafond 60s Vercel. Le dashboard ne fait que
+  // relayer via /api/pipeline/local-agent ; voir ce fichier pour le pourquoi.
+  const [agentStatus, setAgentStatus] = useState<{ configured: boolean; reachable: boolean } | null>(null)
+  const [sourcing, setSourcing] = useState(false)
+  const [sourcingLog, setSourcingLog] = useState<string[]>([])
+  const [sourcingResult, setSourcingResult] = useState<{ sourced: number; generated: number; stockPret: number } | null>(null)
+
   const loadStats = useCallback(async () => {
     const res = await fetch("/api/stats")
     setStats(await res.json())
   }, [])
 
+  const checkAgent = useCallback(async () => {
+    try {
+      const res = await fetch("/api/pipeline/local-agent")
+      setAgentStatus(await res.json())
+    } catch {
+      setAgentStatus({ configured: false, reachable: false })
+    }
+  }, [])
+
   useEffect(() => {
     loadStats()
+    checkAgent()
     const interval = setInterval(loadStats, 15000)
     return () => clearInterval(interval)
-  }, [loadStats])
+  }, [loadStats, checkAgent])
+
+  const sourceGrosVolume = async () => {
+    const objectifStr = prompt("Combien de prospects viser ? (ex: 500)", "500")
+    if (!objectifStr) return
+    const objectif = Math.max(1, Math.min(2000, Number(objectifStr) || 200))
+
+    setSourcing(true)
+    setSourcingLog([])
+    setSourcingResult(null)
+
+    const res = await fetch("/api/pipeline/local-agent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ objectif }),
+    })
+
+    if (!res.ok || !res.body) {
+      const err = await res.json().catch(() => ({}))
+      setSourcingLog((prev) => [...prev, `✗ ${err.error ?? "Erreur inconnue"}`])
+      setSourcing(false)
+      return
+    }
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ""
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split("\n\n")
+      buffer = lines.pop() ?? ""
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue
+        try {
+          const evt = JSON.parse(line.slice(6))
+          if (evt.type === "progress") setSourcingLog((prev) => [...prev.slice(-40), evt.message])
+          if (evt.type === "error") setSourcingLog((prev) => [...prev, `✗ ${evt.message}`])
+          if (evt.type === "done") {
+            setSourcingResult({ sourced: evt.sourced, generated: evt.generated, stockPret: evt.stockPret })
+            loadStats()
+          }
+        } catch {}
+      }
+    }
+    setSourcing(false)
+  }
 
   const sendBatch = async () => {
     if (!confirm("Envoyer tous les emails prêts maintenant ?")) return
@@ -135,6 +201,43 @@ export function Dashboard() {
           filtrés des robots, jamais d&apos;un événement confirmé. Voir le détail par statut ci-dessous.
         </div>
       )}
+
+      {/* Sourcing gros volume — agent local, hors plafond 60s Vercel */}
+      <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">Sourcing gros volume</h2>
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+            agentStatus?.reachable ? "bg-emerald-900 text-emerald-300" : "bg-zinc-800 text-zinc-500"
+          }`}>
+            {agentStatus?.reachable ? "● Agent local connecté" : agentStatus?.configured ? "○ Agent configuré, injoignable" : "○ Agent non configuré"}
+          </span>
+        </div>
+        <p className="mb-3 text-xs text-zinc-500">
+          Sourcing sans limite de temps (contrairement au bouton &laquo; Préparer un gros stock &raquo; sur /sourcer, plafonné à 52s par Vercel) — tourne sur ta machine via <code className="text-zinc-400">scripts/sourcing-agent.ts</code>, relayé ici par tunnel.
+        </p>
+        {!agentStatus?.configured && (
+          <p className="mb-3 text-xs text-amber-400">
+            Agent non configuré. Lance <code>npx tsx scripts/sourcing-agent.ts</code> sur ton Mac, un tunnel (ex: <code>ngrok http 3999</code>), puis ajoute SOURCING_AGENT_URL / SOURCING_AGENT_KEY dans Vercel → Settings → Environment Variables.
+          </p>
+        )}
+        <button
+          onClick={sourceGrosVolume}
+          disabled={sourcing || !agentStatus?.reachable}
+          className="w-full rounded-lg bg-indigo-700 py-2.5 text-sm font-semibold text-white hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          {sourcing ? "Sourcing en cours..." : "🌍 Sourcer un gros volume"}
+        </button>
+        {sourcingResult && (
+          <p className="mt-2 text-xs text-emerald-400">
+            ✅ {sourcingResult.sourced} sourcés, {sourcingResult.generated} emails générés, {sourcingResult.stockPret} prêts à contacter.
+          </p>
+        )}
+        {sourcingLog.length > 0 && (
+          <div className="mt-2 max-h-40 overflow-y-auto space-y-0.5 font-mono text-xs text-zinc-400">
+            {sourcingLog.map((line, i) => <div key={i}>{line}</div>)}
+          </div>
+        )}
+      </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

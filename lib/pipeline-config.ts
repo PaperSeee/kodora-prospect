@@ -125,6 +125,22 @@ export const COMMUNES = [
   "Berchem-Sainte-Agathe",
   "Ganshoren",
   "Evere",
+  // Wallonie — ajoutée le 2026-09-02. L'offre Ads cible déjà "Bruxelles +
+  // Wallonie" (voir config/case-study.json), mais le sourcing ne couvrait
+  // que Bruxelles-Capitale jusqu'ici. Grandes villes wallonnes, choisies
+  // pour leur nom non ambigu au géocodage Nominatim (countrycodes=be déjà
+  // filtré dans lib/source-overpass.ts) — pas les 262 communes wallonnes,
+  // qui multiplieraient le temps de sourcing pour un gain marginal.
+  "Charleroi",
+  "Liège",
+  "Namur",
+  "Mons",
+  "Tournai",
+  "La Louvière",
+  "Verviers",
+  "Mouscron",
+  "Wavre",
+  "Nivelles",
 ]
 
 // Nb de prospects sourcés par secteur à chaque run.

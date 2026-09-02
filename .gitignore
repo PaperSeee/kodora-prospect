@@ -44,3 +44,7 @@ next-env.d.ts
 
 # Backups DB Turso (données perso — ne jamais commiter)
 backup-*.sql
+
+# Curseur de rotation du sourcing manuel (scripts/source-manual.ts,
+# scripts/sourcing-agent.ts) — état d'exécution local, pas une donnée de repo.
+.sourcing-agent-cursor.json
