@@ -8,10 +8,11 @@ interface Stats {
   parSecteur: { secteur: string; count: number }[]
   avgScore: number
   maxScore: number
-  chauds: number
+  scoreSuperieur50: number
   avecEmail: number
   avecEmailCorps: number
   recents: { id: number; nom: string; secteur: string; score: number; statut: string; createdAt: string }[]
+  definitions: Record<string, string>
 }
 
 interface SendEvent {
@@ -26,11 +27,25 @@ interface SendEvent {
 
 const STATUT_LABELS: Record<string, { label: string; color: string }> = {
   a_contacter: { label: "À contacter", color: "bg-zinc-600" },
-  contacte: { label: "Contacté", color: "bg-blue-600" },
+  en_file: { label: "En file", color: "bg-slate-600" },
+  contacte: { label: "Contacté (délivré)", color: "bg-blue-600" },
+  audit_vu: { label: "Audit vu", color: "bg-cyan-600" },
+  cta_clique: { label: "CTA cliqué", color: "bg-orange-600" },
   a_repondu: { label: "A répondu", color: "bg-amber-600" },
   rdv: { label: "RDV", color: "bg-purple-600" },
   signe: { label: "Signé", color: "bg-emerald-600" },
+  bounce: { label: "Bounce", color: "bg-red-700" },
+  bloque: { label: "Bloqué", color: "bg-red-700" },
+  spam: { label: "Signalé spam", color: "bg-red-800" },
+  desabonne: { label: "Désabonné", color: "bg-zinc-700" },
+  // Historique d'avant le correctif KPI (2026-09-01) — jamais confirmés par
+  // un événement vérifié, voir le bandeau d'avertissement plus bas.
+  contacte_non_verifie: { label: "Contacté (non vérifié)", color: "bg-blue-950" },
+  audit_vu_non_verifie: { label: "Audit vu (non vérifié)", color: "bg-cyan-950" },
+  cta_clique_non_verifie: { label: "CTA cliqué (non vérifié)", color: "bg-orange-950" },
 }
+
+const STATUTS_NON_VERIFIES = ["contacte_non_verifie", "audit_vu_non_verifie", "cta_clique_non_verifie"]
 
 const SCORE_COLOR = (s: number) =>
   s >= 70 ? "text-red-400" : s >= 50 ? "text-orange-400" : s >= 30 ? "text-yellow-400" : "text-zinc-400"
@@ -105,13 +120,24 @@ export function Dashboard() {
   const conversionRate = stats.total > 0 ? Math.round(((stats.parStatut["signe"] ?? 0) / stats.total) * 100) : 0
   const emailRate = stats.total > 0 ? Math.round((stats.avecEmail / stats.total) * 100) : 0
 
+  const totalNonVerifie = STATUTS_NON_VERIFIES.reduce((sum, k) => sum + (stats.parStatut[k] ?? 0), 0)
+
   return (
     <div className="h-full overflow-y-auto p-6 space-y-6">
+
+      {totalNonVerifie > 0 && (
+        <div className="rounded-xl border border-red-800 bg-red-950/60 px-5 py-3 text-sm text-red-200">
+          ⚠️ <strong>{totalNonVerifie} prospect(s)</strong> portent un statut antérieur au correctif KPI du
+          2026-09-01 — <em>données non vérifiées</em> (contacte_non_verifie, audit_vu_non_verifie,
+          cta_clique_non_verifie). Ces statuts venaient d&apos;un res.ok Brevo ou d&apos;une vue/clic non
+          filtrés des robots, jamais d&apos;un événement confirmé. Voir le détail par statut ci-dessous.
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <KpiCard label="Prospects total" value={stats.total} sub="dans la base" color="text-white" />
-        <KpiCard label="Chauds 🔥" value={stats.chauds} sub={`score ≥ 50`} color="text-orange-400" />
+        <KpiCard label="Score ≥ 50" value={stats.scoreSuperieur50} sub={`score de sourcing — pas un signal d'intérêt`} color="text-orange-400" />
         <KpiCard label="Avec email" value={`${emailRate}%`} sub={`${stats.avecEmail} / ${stats.total}`} color="text-indigo-400" />
         <KpiCard label="Signés" value={stats.parStatut["signe"] ?? 0} sub={`${conversionRate}% conversion`} color="text-emerald-400" />
       </div>
@@ -243,8 +269,9 @@ export function Dashboard() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-xs font-bold ${SCORE_COLOR(p.score)}`}>{p.score}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-xs text-white ${wasSent ? "bg-blue-600" : s?.color ?? "bg-zinc-600"}`}>
-                    {wasSent ? "Contacté ✓" : s?.label ?? p.statut}
+                  <span className={`rounded-full px-2 py-0.5 text-xs text-white ${wasSent ? "bg-slate-600" : s?.color ?? "bg-zinc-600"}`}>
+                    {/* "En file" = accepté par Brevo, pas remis — "Contacté" n'est vrai qu'après le webhook delivered */}
+                    {wasSent ? "En file ✓" : s?.label ?? p.statut}
                   </span>
                 </div>
               </div>

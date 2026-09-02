@@ -83,7 +83,9 @@ export function ProspectDetail({ prospect, onClose, onUpdate, onDelete }: Props)
       body: JSON.stringify({ prospectId: prospect.id }),
     })
     setSendResult(res.ok ? "ok" : "err")
-    if (res.ok) onUpdate({ ...prospect, statut: "contacte" })
+    // res.ok = accepté par Brevo, pas remis — "contacte" n'arrive que via
+    // le webhook "delivered".
+    if (res.ok) onUpdate({ ...prospect, statut: "en_file" })
     setSending(false)
   }
 

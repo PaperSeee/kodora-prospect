@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendPipelineReport, type EnvoiDetail } from "@/lib/pipeline-report"
 import { dailyCap, jitterDelay, RUN_TIME_BUDGET_MS, RELANCES_ACTIVES, RELANCES_SEULEMENT_APRES } from "@/lib/pipeline-config"
+import { sendBrevoEmail } from "@/lib/send-brevo-email"
+import { shouldAlertOnRunOutcome, notifyPipelineFailure } from "@/lib/pipeline-alert"
 
 // ── CRON QUOTIDIEN : ENVOI SEUL ──
 // Le sourcing + la génération se font à la main via le bouton "Préparer un gros
@@ -38,8 +40,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
 
-  const apiKey = process.env.BREVO_API_KEY
-  if (!apiKey) {
+  if (!process.env.BREVO_API_KEY) {
     return NextResponse.json({ error: "BREVO_API_KEY manquante" }, { status: 400 })
   }
 
@@ -63,6 +64,8 @@ export async function POST(req: NextRequest) {
   const run = await prisma.pipelineRun.create({ data: { capUsed: cap, status: "running" } })
 
   let sent = 0
+  let failed = 0
+  let eligible = 0
   const envois: EnvoiDetail[] = []
 
   try {
@@ -72,6 +75,7 @@ export async function POST(req: NextRequest) {
         orderBy: { score: "desc" }, // meilleures opportunités d'abord
         take: remaining,
       })
+      eligible = prospects.length
 
       for (const prospect of prospects) {
         if (timeLeft() < 6000) break // marge avant le timeout
@@ -87,28 +91,17 @@ export async function POST(req: NextRequest) {
             continue
           }
 
-          const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-            method: "POST",
-            headers: { "api-key": apiKey, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              sender: {
-                name: "Ilias — Kodora",
-                email: process.env.BREVO_SENDER_EMAIL ?? "contact@kodora.eu",
-              },
-              replyTo: { name: "Ilias — Kodora", email: process.env.BREVO_REPLY_TO ?? "contact@kodora.eu" },
-              to: [{ email: prospect.email!, name: prospect.nom }],
-              subject: prospect.emailObjet ?? `Votre présence en ligne — ${prospect.nom}`,
-              ...(prospect.emailHtml
-                ? { htmlContent: prospect.emailHtml, textContent: prospect.emailCorps! }
-                : { textContent: prospect.emailCorps! }),
-            }),
+          // res.ok = accepté par Brevo (→ "en_file"), pas remis — "contacte"
+          // n'est écrit que par le webhook "delivered" (voir /api/webhook/brevo).
+          const result = await sendBrevoEmail({
+            prospectId: prospect.id,
+            to: { email: prospect.email!, name: prospect.nom },
+            subject: prospect.emailObjet ?? `Votre présence en ligne — ${prospect.nom}`,
+            textContent: prospect.emailCorps!,
+            htmlContent: prospect.emailHtml ?? undefined,
           })
 
-          if (res.ok) {
-            await prisma.prospect.update({
-              where: { id: prospect.id },
-              data: { statut: "contacte" },
-            })
+          if (result.ok) {
             sent++
             envois.push({
               nom: prospect.nom,
@@ -116,8 +109,12 @@ export async function POST(req: NextRequest) {
               objet: prospect.emailObjet ?? `Votre présence en ligne — ${prospect.nom}`,
               corps: prospect.emailCorps!,
             })
+          } else {
+            failed++
+            console.error("[pipeline] send failed:", prospect.id, result.error)
           }
         } catch (err) {
+          failed++
           console.error("[pipeline] send error:", err)
         }
 
@@ -143,6 +140,8 @@ export async function POST(req: NextRequest) {
         take: remaining - sent,
       })
 
+      eligible += aRelancer.length
+
       for (const prospect of aRelancer) {
         if (timeLeft() < 6000) break
 
@@ -159,22 +158,17 @@ export async function POST(req: NextRequest) {
           const { relanceEmailTemplate } = await import("@/lib/email-templates")
           const { objet, corps } = relanceEmailTemplate(prospect.nom, prospect.secteur, prospect.emailOuvert)
 
-          const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-            method: "POST",
-            headers: { "api-key": apiKey, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              sender: {
-                name: "Ilias — Kodora",
-                email: process.env.BREVO_SENDER_EMAIL ?? "contact@kodora.eu",
-              },
-              replyTo: { name: "Ilias — Kodora", email: process.env.BREVO_REPLY_TO ?? "contact@kodora.eu" },
-              to: [{ email: prospect.email!, name: prospect.nom }],
-              subject: objet,
-              textContent: corps,
-            }),
+          const result = await sendBrevoEmail({
+            prospectId: prospect.id,
+            to: { email: prospect.email!, name: prospect.nom },
+            subject: objet,
+            textContent: corps,
           })
 
-          if (res.ok) {
+          if (result.ok) {
+            // relancee/relanceeAt restent la trace de la relance elle-même ;
+            // le statut du prospect suit son propre cycle de vie normal
+            // (en_file → contacte via webhook), sendBrevoEmail s'en charge.
             await prisma.prospect.update({
               where: { id: prospect.id },
               data: { relancee: true, relanceeAt: new Date() },
@@ -182,8 +176,12 @@ export async function POST(req: NextRequest) {
             sent++
             relances++
             envois.push({ nom: `${prospect.nom} (relance)`, email: prospect.email!, objet, corps })
+          } else {
+            failed++
+            console.error("[pipeline] relance failed:", prospect.id, result.error)
           }
         } catch (err) {
+          failed++
           console.error("[pipeline] relance error:", err)
         }
 
@@ -195,7 +193,7 @@ export async function POST(req: NextRequest) {
 
     await prisma.pipelineRun.update({
       where: { id: run.id },
-      data: { finishedAt: new Date(), sent, status: "done" },
+      data: { finishedAt: new Date(), sent, eligible, failed, status: "done" },
     })
 
     // Rapport récap par email (pas en dry-run), avec le détail de chaque envoi.
@@ -203,16 +201,23 @@ export async function POST(req: NextRequest) {
       await sendPipelineReport({ cap, sourced: 0, generated: 0, sent, status: "done", envois })
     }
 
+    // Alerte dure : panne silencieuse impossible. Un run avec des
+    // prospects éligibles mais 0 envoyé, ou un taux d'échec > 20%, déclenche
+    // une notification immédiate au lieu de se perdre dans les logs.
+    const alertMessage = dryRun ? null : shouldAlertOnRunOutcome({ eligible, sent, failed })
+    if (alertMessage) await notifyPipelineFailure(alertMessage)
+
     return NextResponse.json({
-      ok: true, dryRun, cap, alreadySentToday, remaining, sent, relances,
+      ok: true, dryRun, cap, alreadySentToday, remaining, sent, relances, eligible, failed,
       note: sent < remaining ? "Stock épuisé ou budget temps atteint — prépare un gros stock via le bouton." : undefined,
     })
   } catch (err) {
     await prisma.pipelineRun.update({
       where: { id: run.id },
-      data: { finishedAt: new Date(), sent, status: "error", error: String(err) },
+      data: { finishedAt: new Date(), sent, eligible, failed, status: "error", error: String(err) },
     })
     await sendPipelineReport({ cap, sourced: 0, generated: 0, sent, status: "error", error: String(err), envois })
+    await notifyPipelineFailure(`Pipeline en erreur : ${String(err)}`)
     return NextResponse.json({ ok: false, error: String(err), sent }, { status: 500 })
   }
 }

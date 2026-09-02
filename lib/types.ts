@@ -21,6 +21,7 @@ export interface Prospect {
   emailOuvertAt: Date | null
   relancee: boolean
   relanceeAt: Date | null
+  rdvAt: Date | null
   createdAt: Date
   updatedAt: Date
 }

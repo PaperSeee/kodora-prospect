@@ -27,7 +27,7 @@ interface AuditSummary {
 function useProspectAudit(prospectId: number, statut: string) {
   const [audit, setAudit] = useState<AuditSummary | null>(null)
   useEffect(() => {
-    if (!["contacte", "lead_chaud", "a_repondu", "rdv"].includes(statut)) return
+    if (!["en_file", "contacte", "audit_vu", "cta_clique", "a_repondu", "rdv"].includes(statut)) return
     fetch(`/api/prospects/${prospectId}/audit`)
       .then((r) => r.ok ? r.json() : null)
       .then((d) => d && setAudit(d))
@@ -36,10 +36,18 @@ function useProspectAudit(prospectId: number, statut: string) {
   return audit
 }
 
+// Statut = uniquement des événements vérifiés et horodatés (voir audit KPI
+// du 2026-09-01) : en_file/contacte viennent du webhook Brevo (accepté →
+// remis), audit_vu/cta_clique d'un tracking filtré anti-bot, rdv est
+// exclusivement manuel avec date obligatoire. Les anciennes valeurs
+// *_non_verifie (migration de requalification) s'affichent sous leur nom
+// brut avec le bandeau d'avertissement du dashboard.
 const COLONNES = [
   { id: "a_contacter", label: "À contacter" },
-  { id: "contacte", label: "Contacté" },
-  { id: "lead_chaud", label: "🔥 Lead chaud" },
+  { id: "en_file", label: "En file" },
+  { id: "contacte", label: "Contacté (délivré)" },
+  { id: "audit_vu", label: "👁️ Audit vu" },
+  { id: "cta_clique", label: "🔥 CTA cliqué" },
   { id: "a_repondu", label: "A répondu" },
   { id: "rdv", label: "RDV" },
   { id: "signe", label: "Signé ✅" },
@@ -126,8 +134,13 @@ function ProspectCard({
         {prospect.relancee && (
           <span className="rounded-full bg-purple-900 px-1.5 py-0.5 text-[10px] text-purple-300">↩ Relancé</span>
         )}
-        {prospect.statut === "lead_chaud" && (
-          <span className="rounded-full bg-orange-900 px-1.5 py-0.5 text-[10px] text-orange-300">🔥 Chaud</span>
+        {prospect.statut === "cta_clique" && (
+          <span className="rounded-full bg-orange-900 px-1.5 py-0.5 text-[10px] text-orange-300">🔥 CTA cliqué</span>
+        )}
+        {prospect.statut.endsWith("_non_verifie") && (
+          <span className="rounded-full bg-red-950 px-1.5 py-0.5 text-[10px] text-red-400" title="Statut antérieur au correctif KPI — non vérifié">
+            ⚠ non vérifié
+          </span>
         )}
       </div>
     </div>
@@ -216,15 +229,39 @@ export function Pipeline() {
     const prospect = prospects.find((p) => p.id === active.id)
     if (!prospect || prospect.statut === newStatut) return
 
+    // RDV exige une date de rendez-vous — le serveur refuse sans elle
+    // (voir PATCH /api/prospects/[id]), donc on la demande ici plutôt que
+    // de laisser la carte revenir en arrière après un rejet silencieux.
+    let rdvAt: string | undefined
+    if (newStatut === "rdv") {
+      const input = prompt(`Date du rendez-vous avec ${prospect.nom} (JJ/MM/AAAA ou AAAA-MM-JJ) :`)
+      if (!input) return
+      const parsed = new Date(input.includes("/") ? input.split("/").reverse().join("-") : input)
+      if (Number.isNaN(parsed.getTime())) {
+        alert("Date invalide — RDV non enregistré.")
+        return
+      }
+      rdvAt = parsed.toISOString()
+    }
+
     setProspects((prev) =>
       prev.map((p) => (p.id === prospect.id ? { ...p, statut: newStatut } : p))
     )
 
-    await fetch(`/api/prospects/${prospect.id}`, {
+    const res = await fetch(`/api/prospects/${prospect.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ statut: newStatut }),
+      body: JSON.stringify(rdvAt ? { statut: newStatut, rdvAt } : { statut: newStatut }),
     })
+
+    if (!res.ok) {
+      // Le serveur a refusé (ex. rdv sans date) — on annule l'optimistic update.
+      setProspects((prev) =>
+        prev.map((p) => (p.id === prospect.id ? { ...p, statut: prospect.statut } : p))
+      )
+      const err = await res.json().catch(() => ({}))
+      alert(err.error ?? "Mise à jour refusée par le serveur.")
+    }
   }
 
   const draggingProspect = prospects.find((p) => p.id === draggingId)
@@ -305,8 +342,10 @@ export function Pipeline() {
         try {
           const evt = JSON.parse(line.slice(6))
           if (evt.type === "sent" && evt.prospectId) {
+            // "sent" = accepté par Brevo, pas remis — le statut réel
+            // "contacte" n'arrive qu'avec le webhook "delivered".
             setProspects((prev) =>
-              prev.map((p) => p.id === evt.prospectId ? { ...p, statut: "contacte" } : p)
+              prev.map((p) => p.id === evt.prospectId ? { ...p, statut: "en_file" } : p)
             )
             count = evt.count
           }

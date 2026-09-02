@@ -38,10 +38,48 @@ model Prospect {
   relancee      Boolean   @default(false)
   relanceeAt    DateTime?
 
+  // RDV : exclusivement manuel (voir /api/prospects/[id]), jamais déduit
+  // d'un clic ou d'une vue. rdvAt est obligatoire pour passer statut="rdv".
+  rdvAt         DateTime?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  audits      Audit[]
+  audits        Audit[]
+  emailEvents   EmailEvent[]
+  sendAttempts  SendAttempt[]
+}
+
+// Journal brut de chaque événement webhook Brevo reçu, sans exception.
+// Source de vérité : les champs du prospect (statut, etc.) n'en sont
+// qu'une projection recalculable. Rien n'est jamais écrit sur le prospect
+// sans passer par ici en premier (sauf actions manuelles explicites).
+model EmailEvent {
+  id         Int      @id @default(autoincrement())
+  prospectId Int?
+  prospect   Prospect? @relation(fields: [prospectId], references: [id])
+  messageId  String?
+  event      String    // delivered | hard_bounce | soft_bounce | blocked | deferred | complaint | opened | clicked | unsubscribed | ...
+  payload    String    // JSON brut de l'événement Brevo, pour audit / rejeu
+  receivedAt DateTime  @default(now())
+
+  @@index([messageId])
+  @@index([prospectId])
+}
+
+// Chaque tentative d'envoi, réussie ou non. Rend visible ce qui était
+// invisible avant : un run qui échoue silencieusement (catch + console.error).
+model SendAttempt {
+  id         Int      @id @default(autoincrement())
+  prospectId Int
+  prospect   Prospect @relation(fields: [prospectId], references: [id])
+  startedAt  DateTime @default(now())
+  httpStatus Int?
+  messageId  String?
+  error      String?
+
+  @@index([prospectId])
+  @@index([messageId])
 }
 
 model EarlyAccessSignup {
@@ -59,7 +97,9 @@ model PipelineRun {
   finishedAt  DateTime?
   sourced     Int      @default(0)  // nouveaux prospects sourcés
   generated   Int      @default(0)  // emails générés
-  sent        Int      @default(0)  // emails réellement envoyés
+  sent        Int      @default(0)  // emails réellement envoyés (res.ok Brevo, avant confirmation delivered)
+  eligible    Int      @default(0)  // prospects qui remplissaient les critères d'envoi ce run
+  failed      Int      @default(0)  // tentatives échouées (res non-ok ou exception)
   capUsed     Int      @default(0)  // plafond appliqué ce jour-là
   status      String   @default("running") // running | done | error
   error       String?
