@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { adsEmail1Observation, noSiteEmailTemplate } from "@/lib/email-templates"
+import { secteurMeta } from "@/lib/pipeline-config"
 
 const PLATEFORMES = ["doctoranytime", "zocdoc", "practo", "facebook.com", "instagram.com", "linkedin.com"]
 
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
   const concurrentsPayants = diagData.concurrentsPayants ?? []
 
   const { objet, corps } = adsEmail1Observation(prospect.nom, prospect.secteur, {
-    motCle: prospect.secteur,
+    motCle: secteurMeta(prospect.secteur).motCle,
     commune: prospect.ville,
     concurrent1: concurrentsPayants[0] ?? null,
     concurrent2: concurrentsPayants[1] ?? null,

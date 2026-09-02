@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { SECTEURS_ROTATION } from "./pipeline-config"
+import { SECTEURS_ROTATION, validateSecteursMeta } from "./pipeline-config"
 
 describe("SECTEURS_ROTATION — retargeté sur les métiers d'urgence", () => {
   const ANCIENS_SECTEURS_BUREAU = ["comptable", "avocat", "notaire", "photographe", "agence immobilière", "fiduciaire"]
@@ -23,5 +23,12 @@ describe("SECTEURS_ROTATION — retargeté sur les métiers d'urgence", () => {
     for (const secteur of tousSecteurs) {
       expect(source, `"${secteur}" doit avoir une entrée dans SECTEUR_OSM (lib/source-overpass.ts)`).toContain(`"${secteur}":`)
     }
+  })
+
+  // Ce test joue le rôle de "build échoue si secteur actif sans métadonnées"
+  // (voir CHANGELOG 2026-09-02) — sans dépendance de build supplémentaire,
+  // un vitest run en CI suffit à attraper le même trou avant un vrai envoi.
+  it("chaque secteur de la rotation a ses métadonnées (secteurLabel, secteurLabelNl, motCle)", () => {
+    expect(() => validateSecteursMeta()).not.toThrow()
   })
 })
