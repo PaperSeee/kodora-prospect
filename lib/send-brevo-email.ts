@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { SEND_EMAIL_ENABLED } from "@/lib/pipeline-config"
 
 // Envoi d'un email transactionnel via Brevo, journalisé sans exception :
 // chaque tentative (réussie ou non) crée un SendAttempt, et un res.ok
@@ -26,6 +27,17 @@ export interface SendEmailResult {
 }
 
 export async function sendBrevoEmail(input: SendEmailInput): Promise<SendEmailResult> {
+  // Canal email désactivé — remplacé par le tableau WhatsApp (/whatsapp).
+  // Point de passage unique de tous les envois (cron, batch manuel, envoi
+  // ponctuel) : un seul flag ici les coupe tous sans toucher aux routes ni
+  // aux templates. Voir SEND_EMAIL_ENABLED dans lib/pipeline-config.ts.
+  if (!SEND_EMAIL_ENABLED) {
+    await prisma.sendAttempt.create({
+      data: { prospectId: input.prospectId, httpStatus: null, error: "SEND_EMAIL_ENABLED=false — envoi désactivé" },
+    })
+    return { ok: false, httpStatus: 0, messageId: null, error: "SEND_EMAIL_ENABLED=false" }
+  }
+
   const apiKey = process.env.BREVO_API_KEY
   if (!apiKey) {
     await prisma.sendAttempt.create({

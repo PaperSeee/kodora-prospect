@@ -50,9 +50,10 @@ model Prospect {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  audits        Audit[]
-  emailEvents   EmailEvent[]
-  sendAttempts  SendAttempt[]
+  audits            Audit[]
+  emailEvents       EmailEvent[]
+  sendAttempts      SendAttempt[]
+  whatsappContact   WhatsappContact?
 }
 
 // Journal brut de chaque événement webhook Brevo reçu, sans exception.
@@ -85,6 +86,22 @@ model SendAttempt {
 
   @@index([prospectId])
   @@index([messageId])
+}
+
+// Journal des prospects contactés via WhatsApp (bouton du tableau
+// /whatsapp) — sert à exclure par défaut tout prospect recontacté il y a
+// moins de 90 jours (voir lib/pipeline-config.ts::CONTACT_COOLDOWN_JOURS).
+// Équivalent du data/contacted.json prévu dans le brief, mais en table
+// Prisma : le filesystem Vercel est éphémère (rien écrit sur disque en
+// prod ne survit à un redéploiement / cold start), alors que Turso persiste
+// — même raison que SendAttempt/EmailEvent au lieu d'un fichier de log.
+model WhatsappContact {
+  id          Int      @id @default(autoincrement())
+  prospectId  Int      @unique
+  prospect    Prospect @relation(fields: [prospectId], references: [id])
+  contactedAt DateTime @default(now())
+
+  @@index([prospectId])
 }
 
 model EarlyAccessSignup {

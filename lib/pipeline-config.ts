@@ -194,3 +194,31 @@ export function jitterDelay(): number {
 // 52s laisse de la marge ; avec ~0,3-0,7s/email ça couvre largement 50 envois.
 // On arrête proprement l'envoi avant le timeout — le reste partira au prochain run.
 export const RUN_TIME_BUDGET_MS = 52_000
+
+// ── CANAL DE SORTIE ──
+//
+// L'email cold obtient zéro réponse mesurée — canal remplacé par le tableau
+// WhatsApp (/whatsapp, voir components/WhatsappBoard.tsx). Coupé ici plutôt
+// que supprimé : toute la mécanique (templates, séquence, cron, webhook
+// Brevo) reste en place au cas où on voudrait la rallumer. app/api/pipeline/
+// run/route.ts (le cron d'envoi quotidien) lit ce flag et sort tôt si false.
+export const SEND_EMAIL_ENABLED = false
+
+// Template WhatsApp, substitution de {metier} et {commune}. Le message reste
+// volontairement court et pose une question ouverte plutôt qu'un pitch —
+// c'est un premier contact, pas l'email 1 (voir email-templates.ts).
+export const WHATSAPP_MESSAGE_TEMPLATE =
+  "Bonjour, Ilias. Je gère un site qui reçoit des demandes de {metier} sur {commune}. " +
+  "Je transmets les demandes à un artisan, je ne fais pas le métier. " +
+  "Vous prenez encore des clients en ce moment ?"
+
+export function whatsappMessage(secteur: string, commune: string): string {
+  const metier = secteurMeta(secteur).motCle
+  return WHATSAPP_MESSAGE_TEMPLATE.replace("{metier}", metier).replace("{commune}", commune)
+}
+
+// Ne re-propose pas par défaut un prospect déjà contacté via WhatsApp il y a
+// moins de 90 jours (voir WhatsappContact dans schema.prisma) — évite de
+// spammer deux fois la même entreprise en dessous d'un délai raisonnable de
+// relance.
+export const CONTACT_COOLDOWN_JOURS = 90

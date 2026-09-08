@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendPipelineReport, type EnvoiDetail } from "@/lib/pipeline-report"
-import { dailyCap, jitterDelay, RUN_TIME_BUDGET_MS, RELANCES_ACTIVES, RELANCES_SEULEMENT_APRES, SEQUENCE_DELAIS_JOURS } from "@/lib/pipeline-config"
+import { dailyCap, jitterDelay, RUN_TIME_BUDGET_MS, RELANCES_ACTIVES, RELANCES_SEULEMENT_APRES, SEQUENCE_DELAIS_JOURS, SEND_EMAIL_ENABLED } from "@/lib/pipeline-config"
 import { adsEmail2Offre, adsEmail3Objection, adsEmail4Sortie } from "@/lib/email-templates"
 import { sendBrevoEmail } from "@/lib/send-brevo-email"
 import { shouldAlertOnRunOutcome, notifyPipelineFailure } from "@/lib/pipeline-alert"
@@ -39,6 +39,13 @@ function isAuthorized(req: NextRequest): boolean {
 export async function POST(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
+  }
+
+  // Canal email désactivé — remplacé par le tableau WhatsApp (/whatsapp).
+  // Flag plutôt que suppression du code : voir SEND_EMAIL_ENABLED dans
+  // lib/pipeline-config.ts pour comment le réactiver.
+  if (!SEND_EMAIL_ENABLED) {
+    return NextResponse.json({ ok: true, skipped: true, reason: "SEND_EMAIL_ENABLED=false — canal email désactivé, voir lib/pipeline-config.ts" })
   }
 
   if (!process.env.BREVO_API_KEY) {
