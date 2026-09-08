@@ -23,6 +23,7 @@ const VIEW_KEY = "whatsapp-board-view"
 
 type LocalContacted = Record<number, string> // prospectId -> ISO date
 type ViewMode = "file" | "tableau"
+type CanalFilter = "" | "whatsapp" | "appeler"
 
 function loadLocalContacted(): LocalContacted {
   try {
@@ -39,7 +40,14 @@ function saveLocalContacted(v: LocalContacted) {
 }
 
 const SCORE_COLOR = (s: number) =>
-  s >= 70 ? "text-red-400" : s >= 50 ? "text-orange-400" : s >= 30 ? "text-yellow-400" : "text-zinc-400"
+  s >= 70 ? "text-red-600" : s >= 50 ? "text-orange-600" : s >= 30 ? "text-amber-600" : "text-gray-400"
+
+// Canal effectif pour un prospect — même logique que le rendu des boutons
+// (mobile BE → WhatsApp, fixe → Appeler, rien → aucun canal exploitable).
+function canalDe(row: Row): CanalFilter | null {
+  if (!row.telephone) return null
+  return isMobileBe(row.telephone) ? "whatsapp" : "appeler"
+}
 
 export function WhatsappBoard() {
   const [rows, setRows] = useState<Row[] | null>(null)
@@ -47,6 +55,7 @@ export function WhatsappBoard() {
   const [contacted, setContacted] = useState<LocalContacted>({})
   const [communeFilter, setCommuneFilter] = useState("")
   const [secteurFilter, setSecteurFilter] = useState("")
+  const [canalFilter, setCanalFilter] = useState<CanalFilter>("")
   const [view, setView] = useState<ViewMode>("file")
   const [cursor, setCursor] = useState(0)
   const [justSent, setJustSent] = useState<Set<number>>(new Set())
@@ -113,9 +122,10 @@ export function WhatsappBoard() {
     return rows.filter((r) => {
       if (communeFilter && r.ville !== communeFilter) return false
       if (secteurFilter && r.secteur !== secteurFilter) return false
+      if (canalFilter && canalDe(r) !== canalFilter) return false
       return true
     })
-  }, [rows, communeFilter, secteurFilter])
+  }, [rows, communeFilter, secteurFilter, canalFilter])
 
   // File d'attente : tout ce qui n'est pas déjà coché "contacté" (ni en base,
   // via /api/whatsapp qui exclut déjà le cooldown 90j, ni localement dans
@@ -128,7 +138,7 @@ export function WhatsappBoard() {
 
   if (!rows) {
     return (
-      <div className="flex h-full items-center justify-center text-zinc-500">
+      <div className="flex h-full items-center justify-center text-gray-400">
         Chargement du tableau WhatsApp...
       </div>
     )
@@ -138,20 +148,20 @@ export function WhatsappBoard() {
   const totalRestants = rows.length - totalContactes
 
   return (
-    <div className="h-full overflow-y-auto p-6 space-y-5">
+    <div className="h-full overflow-y-auto bg-gray-50 p-6 space-y-5">
       {/* Compteurs */}
       <div className="grid grid-cols-3 gap-4">
-        <CounterCard label="Total" value={rows.length} color="text-white" />
-        <CounterCard label="Contactés" value={totalContactes} color="text-emerald-400" />
-        <CounterCard label="Restants" value={totalRestants} color="text-orange-400" />
+        <CounterCard label="Total" value={rows.length} color="text-gray-900" />
+        <CounterCard label="Contactés" value={totalContactes} color="text-emerald-600" />
+        <CounterCard label="Restants" value={totalRestants} color="text-orange-600" />
       </div>
 
       {/* Filtres + toggle de vue */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
         <select
           value={communeFilter}
           onChange={(e) => { setCommuneFilter(e.target.value); setCursor(0) }}
-          className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-200 focus:border-emerald-600 focus:outline-none"
+          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
         >
           <option value="">Toutes les communes</option>
           {communes.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -160,28 +170,41 @@ export function WhatsappBoard() {
         <select
           value={secteurFilter}
           onChange={(e) => { setSecteurFilter(e.target.value); setCursor(0) }}
-          className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-200 capitalize focus:border-emerald-600 focus:outline-none"
+          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 capitalize focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
         >
           <option value="">Tous les métiers</option>
           {secteurs.map((s) => <option key={s} value={s} className="capitalize">{s}</option>)}
         </select>
 
-        <div className="ml-auto flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-950 p-1">
+        {/* Filtre canal : WhatsApp (mobile BE) vs Appeler (fixe) */}
+        <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-100 p-1">
+          <CanalButton active={canalFilter === ""} onClick={() => { setCanalFilter(""); setCursor(0) }}>
+            Tous
+          </CanalButton>
+          <CanalButton active={canalFilter === "whatsapp"} onClick={() => { setCanalFilter("whatsapp"); setCursor(0) }}>
+            💬 WhatsApp
+          </CanalButton>
+          <CanalButton active={canalFilter === "appeler"} onClick={() => { setCanalFilter("appeler"); setCursor(0) }}>
+            📞 Appeler
+          </CanalButton>
+        </div>
+
+        <div className="ml-auto flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-100 p-1">
           <button
             onClick={() => setViewPersist("file")}
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${view === "file" ? "bg-emerald-700 text-white" : "text-zinc-400 hover:text-white"}`}
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${view === "file" ? "bg-emerald-600 text-white" : "text-gray-500 hover:text-gray-900"}`}
           >
             ⚡ File
           </button>
           <button
             onClick={() => setViewPersist("tableau")}
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${view === "tableau" ? "bg-emerald-700 text-white" : "text-zinc-400 hover:text-white"}`}
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${view === "tableau" ? "bg-emerald-600 text-white" : "text-gray-500 hover:text-gray-900"}`}
           >
             ☰ Tableau
           </button>
         </div>
 
-        <span className="w-full text-xs text-zinc-600">
+        <span className="w-full text-xs text-gray-400">
           Exclut par défaut les prospects contactés il y a moins de {cooldownJours} jours
         </span>
       </div>
@@ -199,6 +222,17 @@ export function WhatsappBoard() {
         <TableView filtered={filtered} contacted={contacted} onToggleContacted={toggleContacted} />
       )}
     </div>
+  )
+}
+
+function CanalButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${active ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"}`}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -244,10 +278,10 @@ function QueueView({
 
   if (!row) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 py-24 text-center">
+      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white py-24 text-center shadow-sm">
         <span className="text-4xl">🎉</span>
-        <p className="text-lg font-semibold text-white">File vide — tout le monde a été contacté.</p>
-        <p className="text-sm text-zinc-500">Change les filtres ou repasse plus tard pour de nouveaux prospects.</p>
+        <p className="text-lg font-semibold text-gray-900">File vide — tout le monde a été contacté.</p>
+        <p className="text-sm text-gray-500">Change les filtres ou repasse plus tard pour de nouveaux prospects.</p>
       </div>
     )
   }
@@ -265,21 +299,21 @@ function QueueView({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between text-xs text-zinc-500">
+      <div className="flex items-center justify-between text-xs text-gray-400">
         <span>{cursor + 1} / {queue.length} dans la file</span>
         <span>Espace = marquer contacté · → = passer</span>
       </div>
 
-      <div className="rounded-2xl border border-zinc-800 bg-gradient-to-b from-zinc-900 to-zinc-950 p-8">
+      <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               {row.goldStar && <span className="text-xl" title="Cible en or">⭐</span>}
-              <h2 className="text-2xl font-bold text-white">{row.nom}</h2>
+              <h2 className="text-2xl font-bold text-gray-900">{row.nom}</h2>
             </div>
-            <p className="mt-1 text-sm text-zinc-400 capitalize">{row.secteur} · {row.ville}</p>
+            <p className="mt-1 text-sm text-gray-500 capitalize">{row.secteur} · {row.ville}</p>
           </div>
-          <span className={`shrink-0 rounded-full bg-zinc-800 px-3 py-1 text-lg font-bold ${SCORE_COLOR(row.score)}`}>
+          <span className={`shrink-0 rounded-full bg-gray-100 px-3 py-1 text-lg font-bold ${SCORE_COLOR(row.score)}`}>
             {row.score}
           </span>
         </div>
@@ -292,7 +326,7 @@ function QueueView({
             label="Site"
             value={
               row.siteWeb ? (
-                <a href={row.siteWeb.startsWith("http") ? row.siteWeb : `https://${row.siteWeb}`} target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">
+                <a href={row.siteWeb.startsWith("http") ? row.siteWeb : `https://${row.siteWeb}`} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">
                   Voir
                 </a>
               ) : "Aucun"
@@ -301,13 +335,13 @@ function QueueView({
         </div>
 
         {row.angle && (
-          <p className="mt-4 rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-2 text-sm text-zinc-400">
+          <p className="mt-4 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-900">
             {row.angle}
           </p>
         )}
 
-        <div className="mt-5 rounded-lg border border-zinc-800 bg-black/30 px-4 py-3 text-sm text-zinc-300">
-          <p className="mb-1 text-xs uppercase tracking-wider text-zinc-600">Message qui sera envoyé</p>
+        <div className="mt-5 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+          <p className="mb-1 text-xs uppercase tracking-wider text-gray-400">Message qui sera envoyé</p>
           {message}
         </div>
 
@@ -315,19 +349,19 @@ function QueueView({
           {waUrl ? (
             <button
               onClick={openContact}
-              className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-4 text-lg font-bold text-white shadow-lg shadow-emerald-950/50 hover:bg-emerald-500 transition-colors"
+              className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-4 text-lg font-bold text-white shadow-md hover:bg-emerald-500 transition-colors"
             >
               💬 Ouvrir WhatsApp
             </button>
           ) : telHref ? (
             <button
               onClick={openContact}
-              className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-4 text-lg font-bold text-white shadow-lg shadow-indigo-950/50 hover:bg-indigo-500 transition-colors"
+              className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-4 text-lg font-bold text-white shadow-md hover:bg-indigo-500 transition-colors"
             >
               📞 Appeler
             </button>
           ) : (
-            <div className="flex items-center justify-center rounded-xl border border-dashed border-zinc-700 py-4 text-sm text-zinc-600">
+            <div className="flex items-center justify-center rounded-xl border border-dashed border-gray-300 py-4 text-sm text-gray-400">
               Pas de téléphone exploitable
             </div>
           )}
@@ -336,8 +370,8 @@ function QueueView({
             onClick={confirmerContact}
             className={`flex items-center justify-center gap-2 rounded-xl py-4 text-lg font-bold transition-colors ${
               justSent.has(row.id)
-                ? "bg-emerald-800 text-emerald-100"
-                : "bg-zinc-800 text-white hover:bg-zinc-700"
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-gray-900 text-white hover:bg-gray-800"
             }`}
           >
             ✓ Marquer contacté {justSent.has(row.id) ? "" : "(Espace)"}
@@ -346,7 +380,7 @@ function QueueView({
 
         <button
           onClick={passer}
-          className="mt-3 w-full rounded-lg py-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+          className="mt-3 w-full rounded-lg py-2 text-sm text-gray-400 hover:text-gray-700 transition-colors"
         >
           Passer sans contacter →
         </button>
@@ -358,8 +392,8 @@ function QueueView({
 function Stat({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-wider text-zinc-600">{label}</p>
-      <p className="text-sm font-semibold text-zinc-200">{value}</p>
+      <p className="text-[11px] uppercase tracking-wider text-gray-400">{label}</p>
+      <p className="text-sm font-semibold text-gray-800">{value}</p>
     </div>
   )
 }
@@ -375,10 +409,10 @@ function TableView({
   onToggleContacted: (id: number) => void
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-zinc-800">
+    <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-zinc-800 bg-zinc-900 text-left text-xs uppercase tracking-wider text-zinc-500">
+          <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-500">
             <th className="px-4 py-3 w-10"></th>
             <th className="px-4 py-3">Nom</th>
             <th className="px-4 py-3">Commune</th>
@@ -396,7 +430,7 @@ function TableView({
           ))}
           {filtered.length === 0 && (
             <tr>
-              <td colSpan={9} className="px-4 py-10 text-center text-zinc-600">
+              <td colSpan={9} className="px-4 py-10 text-center text-gray-400">
                 Aucun prospect pour ces filtres.
               </td>
             </tr>
@@ -422,50 +456,50 @@ function ProspectRow({
   const telHref = row.telephone && !mobile ? toTelHref(row.telephone) : null
 
   return (
-    <tr className={`border-b border-zinc-800/60 transition-colors ${contactedAt ? "bg-zinc-900/40" : "hover:bg-zinc-900/60"}`}>
+    <tr className={`border-b border-gray-100 transition-colors ${contactedAt ? "bg-gray-50" : "hover:bg-gray-50"}`}>
       <td className="px-4 py-3">
         <input
           type="checkbox"
           checked={!!contactedAt}
           onChange={onToggleContacted}
-          className="h-4 w-4 rounded border-zinc-600 bg-zinc-950 accent-emerald-600"
+          className="h-4 w-4 rounded border-gray-300 accent-emerald-600"
           title={contactedAt ? `Contacté le ${new Date(contactedAt).toLocaleDateString("fr-BE")}` : "Marquer comme contacté"}
         />
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-1.5">
           {row.goldStar && <span title="Cible en or">⭐</span>}
-          <span className={`font-medium ${contactedAt ? "text-zinc-500" : "text-white"}`}>{row.nom}</span>
+          <span className={`font-medium ${contactedAt ? "text-gray-400" : "text-gray-900"}`}>{row.nom}</span>
         </div>
-        <div className="text-xs text-zinc-600 capitalize">{row.secteur}</div>
+        <div className="text-xs text-gray-400 capitalize">{row.secteur}</div>
       </td>
-      <td className="px-4 py-3 text-zinc-400">{row.ville}</td>
-      <td className="px-4 py-3 text-zinc-400">{row.note ?? "—"}</td>
-      <td className="px-4 py-3 text-zinc-400">{row.avis ?? "—"}</td>
+      <td className="px-4 py-3 text-gray-600">{row.ville}</td>
+      <td className="px-4 py-3 text-gray-600">{row.note ?? "—"}</td>
+      <td className="px-4 py-3 text-gray-600">{row.avis ?? "—"}</td>
       <td className="px-4 py-3">
         {row.siteWeb ? (
-          <a href={row.siteWeb.startsWith("http") ? row.siteWeb : `https://${row.siteWeb}`} target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">
+          <a href={row.siteWeb.startsWith("http") ? row.siteWeb : `https://${row.siteWeb}`} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">
             Voir
           </a>
         ) : (
-          <span className="text-zinc-600">Aucun site</span>
+          <span className="text-gray-400">Aucun site</span>
         )}
       </td>
-      <td className="px-4 py-3 max-w-xs truncate text-zinc-400" title={row.angle ?? ""}>
+      <td className="px-4 py-3 max-w-xs truncate text-gray-600" title={row.angle ?? ""}>
         {row.angle ?? "—"}
       </td>
       <td className={`px-4 py-3 text-right font-bold ${SCORE_COLOR(row.score)}`}>{row.score}</td>
       <td className="px-4 py-3 text-right">
         {waUrl ? (
-          <a href={waUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 transition-colors">
+          <a href={waUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 transition-colors">
             WhatsApp
           </a>
         ) : telHref ? (
-          <a href={`tel:${telHref}`} className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-600 transition-colors">
+          <a href={`tel:${telHref}`} className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors">
             Appeler
           </a>
         ) : (
-          <span className="text-xs text-zinc-600">Pas de tél.</span>
+          <span className="text-xs text-gray-400">Pas de tél.</span>
         )}
       </td>
     </tr>
@@ -474,8 +508,8 @@ function ProspectRow({
 
 function CounterCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-      <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">{label}</p>
+    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">{label}</p>
       <p className={`text-3xl font-bold ${color}`}>{value}</p>
     </div>
   )

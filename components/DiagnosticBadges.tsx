@@ -14,7 +14,7 @@ export function DiagnosticBadges({ flags }: { flags: DiagnosticFlag[] }) {
     <div className="flex flex-wrap gap-1">
       {flags.filter((f) => (f as string) !== "PAS_HTTPS").map((flag) => {
         let label = flag as string
-        let color = "bg-zinc-600"
+        let color = "bg-gray-400"
 
         if (flag in FLAG_LABELS) {
           label = FLAG_LABELS[flag].label

@@ -141,6 +141,25 @@ export const COMMUNES = [
   "Mouscron",
   "Wavre",
   "Nivelles",
+  // Deuxième vague wallonne — ajoutée le 2026-09-08, même critère que la
+  // première (noms non ambigus au géocodage Nominatim, countrycodes=be déjà
+  // filtré dans lib/source-overpass.ts). Villes moyennes à forte densité
+  // d'artisans/commerces plutôt que les 262 communes wallonnes en entier.
+  "Seraing",
+  "Herstal",
+  "Braine-l'Alleud",
+  "Ottignies-Louvain-la-Neuve",
+  "Arlon",
+  "Huy",
+  "Dinant",
+  "Marche-en-Famenne",
+  "Gembloux",
+  "Waterloo",
+  "Genappe",
+  "Tubize",
+  "Soignies",
+  "Ath",
+  "Comines-Warneton",
 ]
 
 // Nb de prospects sourcés par secteur à chaque run.

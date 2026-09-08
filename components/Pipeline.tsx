@@ -78,38 +78,38 @@ function ProspectCard({
       {...listeners}
       {...attributes}
       onClick={onClick}
-      className="cursor-pointer rounded-lg bg-zinc-800 p-3 shadow hover:bg-zinc-700 active:cursor-grabbing"
+      className="cursor-pointer rounded-lg border border-gray-200 bg-white p-3 shadow-sm hover:bg-gray-50 active:cursor-grabbing"
     >
       <div className="mb-1 flex items-start justify-between gap-2">
-        <span className="text-sm font-semibold text-white leading-tight">
+        <span className="text-sm font-semibold text-gray-900 leading-tight">
           {prospect.goldStar && "⭐ "}
           {prospect.nom}
         </span>
         <ScoreBadge score={prospect.score} />
       </div>
-      <p className="mb-1 text-xs text-zinc-400">{prospect.secteur}</p>
+      <p className="mb-1 text-xs text-gray-500">{prospect.secteur}</p>
       {prospect.angle && (
-        <p className="text-xs text-zinc-500 italic truncate">{prospect.angle}</p>
+        <p className="text-xs text-gray-400 italic truncate">{prospect.angle}</p>
       )}
       {prospect.telephone && (
-        <p className="mt-1 text-xs text-zinc-500">📞 {prospect.telephone}</p>
+        <p className="mt-1 text-xs text-gray-400">📞 {prospect.telephone}</p>
       )}
 
       {/* Badges audit */}
       {audit && (
-        <div className="mt-2 rounded-md bg-zinc-900 px-2 py-1.5 text-[10px] space-y-0.5">
+        <div className="mt-2 rounded-md bg-gray-50 border border-gray-200 px-2 py-1.5 text-[10px] space-y-0.5">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-zinc-400">Score audit</span>
-            <span className="font-bold text-indigo-400">{audit.score}/100</span>
+            <span className="text-gray-500">Score audit</span>
+            <span className="font-bold text-indigo-600">{audit.score}/100</span>
           </div>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-zinc-400">Consultations</span>
-            <span className={`font-bold ${audit.viewCount > 0 ? "text-emerald-400" : "text-zinc-500"}`}>
+            <span className="text-gray-500">Consultations</span>
+            <span className={`font-bold ${audit.viewCount > 0 ? "text-emerald-600" : "text-gray-400"}`}>
               {audit.viewCount > 0 ? `${audit.viewCount} vue${audit.viewCount > 1 ? "s" : ""}` : "Pas encore vu"}
             </span>
           </div>
           {audit.ctaClicked && (
-            <div className="flex items-center gap-1 text-orange-400 font-bold">
+            <div className="flex items-center gap-1 text-orange-600 font-bold">
               🔥 CTA cliqué
             </div>
           )}
@@ -119,7 +119,7 @@ function ProspectCard({
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="block text-center text-indigo-400 hover:text-indigo-300 mt-1"
+              className="block text-center text-indigo-600 hover:text-indigo-700 mt-1"
             >
               Voir l'audit →
             </a>
@@ -129,16 +129,16 @@ function ProspectCard({
 
       <div className="mt-1.5 flex gap-1 flex-wrap">
         {prospect.emailOuvert && (
-          <span className="rounded-full bg-blue-900 px-1.5 py-0.5 text-[10px] text-blue-300">👁 Ouvert</span>
+          <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-700">👁 Ouvert</span>
         )}
         {prospect.relancee && (
-          <span className="rounded-full bg-purple-900 px-1.5 py-0.5 text-[10px] text-purple-300">↩ Relancé</span>
+          <span className="rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] text-purple-700">↩ Relancé</span>
         )}
         {prospect.statut === "cta_clique" && (
-          <span className="rounded-full bg-orange-900 px-1.5 py-0.5 text-[10px] text-orange-300">🔥 CTA cliqué</span>
+          <span className="rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] text-orange-700">🔥 CTA cliqué</span>
         )}
         {prospect.statut.endsWith("_non_verifie") && (
-          <span className="rounded-full bg-red-950 px-1.5 py-0.5 text-[10px] text-red-400" title="Statut antérieur au correctif KPI — non vérifié">
+          <span className="rounded-full bg-red-50 border border-red-200 px-1.5 py-0.5 text-[10px] text-red-600" title="Statut antérieur au correctif KPI — non vérifié">
             ⚠ non vérifié
           </span>
         )}
@@ -161,13 +161,13 @@ function DroppableColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex min-h-[200px] flex-col rounded-xl border transition-colors ${
-        isOver ? "border-indigo-500 bg-zinc-800/60" : "border-zinc-700 bg-zinc-900"
+      className={`flex min-h-[200px] flex-col rounded-xl border shadow-sm transition-colors ${
+        isOver ? "border-indigo-400 bg-indigo-50" : "border-gray-200 bg-gray-50"
       }`}
     >
-      <div className="flex items-center justify-between border-b border-zinc-700 px-3 py-2.5">
-        <span className="text-sm font-semibold text-zinc-200">{colonne.label}</span>
-        <span className="rounded-full bg-zinc-700 px-2 py-0.5 text-xs text-zinc-400">
+      <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2.5">
+        <span className="text-sm font-semibold text-gray-700">{colonne.label}</span>
+        <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-500">
           {prospects.length}
         </span>
       </div>
@@ -359,24 +359,24 @@ export function Pipeline() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-gray-50">
       {/* Stats bar */}
-      <div className="flex items-center gap-6 border-b border-zinc-800 px-6 py-3 text-sm">
-        <span className="text-zinc-400">
-          Total <span className="font-bold text-white">{stats.total}</span>
+      <div className="flex items-center gap-6 border-b border-gray-200 bg-white px-6 py-3 text-sm">
+        <span className="text-gray-500">
+          Total <span className="font-bold text-gray-900">{stats.total}</span>
         </span>
-        <span className="text-zinc-400">
-          Chauds 🔥 <span className="font-bold text-orange-400">{stats.chauds}</span>
+        <span className="text-gray-500">
+          Chauds 🔥 <span className="font-bold text-orange-600">{stats.chauds}</span>
         </span>
-        <span className="text-zinc-400">
-          Signés ✅ <span className="font-bold text-emerald-400">{stats.signes}</span>
+        <span className="text-gray-500">
+          Signés ✅ <span className="font-bold text-emerald-600">{stats.signes}</span>
         </span>
         <div className="ml-auto flex items-center gap-2">
           {stats.sansEmail > 0 && (
             <button
               onClick={generateBatch}
               disabled={batchGenerating}
-              className="rounded bg-indigo-700 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
+              className="rounded bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
             >
               {batchGenerating ? "Génération..." : `Générer emails (${stats.sansEmail} sans)`}
             </button>
@@ -384,7 +384,7 @@ export function Pipeline() {
           <button
             onClick={regenerateAllBatch}
             disabled={batchRegenerating || batchGenerating}
-            className="rounded bg-violet-800 px-3 py-1 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+            className="rounded bg-violet-600 px-3 py-1 text-xs font-medium text-white hover:bg-violet-500 disabled:opacity-50"
             title="Régénérer tous les mails avec audit + score + lien"
           >
             {batchRegenerating ? "Régénération..." : "🔄 Régénérer tous"}
@@ -398,13 +398,13 @@ export function Pipeline() {
                 value={batchLimit}
                 onChange={(e) => setBatchLimit(Math.max(1, Math.min(300, parseInt(e.target.value) || 1)))}
                 disabled={batchSending}
-                className="w-16 rounded bg-zinc-700 px-2 py-1 text-center text-xs text-white disabled:opacity-50"
+                className="w-16 rounded border border-gray-300 bg-white px-2 py-1 text-center text-xs text-gray-900 disabled:opacity-50"
                 title="Nombre max de mails à envoyer (limite Brevo : 300/jour)"
               />
               <button
                 onClick={sendBatch}
                 disabled={batchSending}
-                className="rounded bg-emerald-700 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-600 disabled:opacity-50"
+                className="rounded bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
               >
                 {batchSending
                   ? "Envoi en cours..."
@@ -413,7 +413,7 @@ export function Pipeline() {
             </div>
           )}
           {sendResult && (
-            <span className="text-xs text-emerald-400">
+            <span className="text-xs text-emerald-600">
               ✅ {sendResult.count} envoyé(s)
               {sendResult.errors.length > 0 && ` — ${sendResult.errors.length} erreur(s)`}
             </span>
@@ -422,17 +422,17 @@ export function Pipeline() {
       </div>
 
       {/* Filtres */}
-      <div className="flex items-center gap-3 border-b border-zinc-800 px-6 py-3">
+      <div className="flex items-center gap-3 border-b border-gray-200 bg-white px-6 py-3">
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Rechercher..."
-          className="rounded bg-zinc-800 px-3 py-1.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
         <select
           value={secteurFilter}
           onChange={(e) => setSecteurFilter(e.target.value)}
-          className="rounded bg-zinc-800 px-3 py-1.5 text-sm text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         >
           <option value="">Tous les secteurs</option>
           {secteurs.map((s) => (
@@ -442,7 +442,7 @@ export function Pipeline() {
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
-          className="rounded bg-zinc-800 px-3 py-1.5 text-sm text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         >
           <option value="score">Trier par score</option>
           <option value="date">Trier par date</option>
@@ -452,7 +452,7 @@ export function Pipeline() {
           className={`ml-auto rounded px-3 py-1.5 text-xs font-medium transition-colors ${
             showSansEmail
               ? "bg-amber-600 text-white"
-              : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+              : "bg-gray-100 text-gray-500 hover:bg-gray-200"
           }`}
         >
           {showSansEmail ? "✕ Masquer sans email" : `⚠ Sans email (${prospects.filter((p) => !p.email).length})`}
@@ -461,14 +461,14 @@ export function Pipeline() {
 
       {/* Board */}
       {loading ? (
-        <div className="flex flex-1 items-center justify-center text-zinc-500">
+        <div className="flex flex-1 items-center justify-center text-gray-400">
           Chargement...
         </div>
       ) : (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           {showSansEmail ? (
             <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-4">
-              <p className="text-xs text-amber-400 font-medium mb-1">
+              <p className="text-xs text-amber-600 font-medium mb-1">
                 {prospects.filter((p) => !p.email).length} prospect(s) sans email — clique pour ajouter manuellement
               </p>
               <div className="grid grid-cols-3 gap-2">
@@ -476,17 +476,17 @@ export function Pipeline() {
                   <div
                     key={p.id}
                     onClick={() => setSelected(p)}
-                    className="cursor-pointer rounded-lg bg-zinc-800 p-3 hover:bg-zinc-700"
+                    className="cursor-pointer rounded-lg border border-gray-200 bg-white p-3 shadow-sm hover:bg-gray-50"
                   >
                     <div className="flex items-start justify-between gap-2 mb-1">
-                      <span className="text-sm font-semibold text-white leading-tight">
+                      <span className="text-sm font-semibold text-gray-900 leading-tight">
                         {p.goldStar && "⭐ "}{p.nom}
                       </span>
                       <ScoreBadge score={p.score} />
                     </div>
-                    <p className="text-xs text-zinc-400">{p.secteur}</p>
-                    {p.siteWeb && <p className="mt-1 text-xs text-zinc-500 truncate">🌐 {p.siteWeb}</p>}
-                    {p.telephone && <p className="mt-1 text-xs text-zinc-500">📞 {p.telephone}</p>}
+                    <p className="text-xs text-gray-500">{p.secteur}</p>
+                    {p.siteWeb && <p className="mt-1 text-xs text-gray-400 truncate">🌐 {p.siteWeb}</p>}
+                    {p.telephone && <p className="mt-1 text-xs text-gray-400">📞 {p.telephone}</p>}
                   </div>
                 ))}
               </div>
@@ -506,12 +506,12 @@ export function Pipeline() {
           )}
           <DragOverlay>
             {draggingProspect && (
-              <div className="w-64 rounded-lg bg-zinc-700 p-3 shadow-2xl opacity-90">
+              <div className="w-64 rounded-lg border border-gray-200 bg-white p-3 shadow-2xl opacity-90">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-sm font-semibold text-white">{draggingProspect.nom}</span>
+                  <span className="text-sm font-semibold text-gray-900">{draggingProspect.nom}</span>
                   <ScoreBadge score={draggingProspect.score} />
                 </div>
-                <p className="text-xs text-zinc-400">{draggingProspect.secteur}</p>
+                <p className="text-xs text-gray-500">{draggingProspect.secteur}</p>
               </div>
             )}
           </DragOverlay>

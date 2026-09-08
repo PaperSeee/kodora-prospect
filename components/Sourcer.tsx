@@ -191,10 +191,10 @@ export function Sourcer() {
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       {/* ── PRÉPARER UN GROS STOCK (1 clic, auto multi-communes + emails) ── */}
-      <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-5 space-y-3">
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 space-y-3">
         <div>
-          <h2 className="text-sm font-bold text-emerald-300">⚡ Préparer un gros stock (recommandé)</h2>
-          <p className="text-xs text-emerald-200/70 mt-1">
+          <h2 className="text-sm font-bold text-emerald-700">⚡ Préparer un gros stock (recommandé)</h2>
+          <p className="text-xs text-emerald-700/70 mt-1">
             Source automatiquement à travers les communes (Bruxelles, Ixelles, Schaerbeek…)
             ET génère les emails, jusqu'à atteindre l'objectif. À lancer ~1×/semaine —
             ensuite le cron envoie tout seul chaque jour.
@@ -202,8 +202,8 @@ export function Sourcer() {
         </div>
         <div className="flex items-center gap-4">
           <div className="flex-1">
-            <label className="mb-1 block text-xs font-medium text-emerald-200/70">
-              Objectif : <span className="text-white font-semibold">{stockObjectif} prospects</span>
+            <label className="mb-1 block text-xs font-medium text-emerald-700/70">
+              Objectif : <span className="text-gray-900 font-semibold">{stockObjectif} prospects</span>
             </label>
             <input
               type="range" min={20} max={300} step={20}
@@ -223,15 +223,15 @@ export function Sourcer() {
         </div>
 
         {(stockLog.length > 0 || stockDone) && (
-          <div className="rounded-lg border border-emerald-700/40 bg-zinc-950 p-3">
-            <div className="max-h-48 overflow-y-auto space-y-0.5 font-mono text-xs text-zinc-400">
+          <div className="rounded-lg border border-emerald-200 bg-white p-3">
+            <div className="max-h-48 overflow-y-auto space-y-0.5 font-mono text-xs text-gray-500">
               {stockLog.map((l, i) => <div key={i}>{l}</div>)}
             </div>
             {stockDone && (
-              <div className="mt-3 text-xs text-emerald-400 font-semibold">
+              <div className="mt-3 text-xs text-emerald-600 font-semibold">
                 ✅ Terminé — {stockDone.sourced} sourcés, {stockDone.generated} emails générés.
                 Stock prêt à envoyer : {stockDone.stockPret}.
-                <a href="/pipeline" className="ml-2 underline hover:text-emerald-300">Voir le pipeline →</a>
+                <a href="/pipeline" className="ml-2 underline hover:text-emerald-700">Voir le pipeline →</a>
               </div>
             )}
           </div>
@@ -239,22 +239,22 @@ export function Sourcer() {
       </div>
 
       {/* Encart RGPD */}
-      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
         ⚠️ <strong>Cold email uniquement.</strong> Volume modéré, opt-out "répondez STOP" inclus. Pas de WhatsApp/SMS à froid.
       </div>
 
-      <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-5 space-y-5">
+      <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-5 shadow-sm">
         {/* Ville */}
         <div className="flex gap-4">
           <div className="flex-1">
-            <label className="mb-1 block text-xs font-medium text-zinc-400">Ville</label>
+            <label className="mb-1 block text-xs font-medium text-gray-400">Ville</label>
             <input
               value={toutesCommunes ? "Toutes les communes de Bruxelles" : ville}
               onChange={(e) => setVille(e.target.value)}
               disabled={toutesCommunes}
-              className="w-full rounded bg-zinc-800 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-60"
+              className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-60"
             />
-            <label className="mt-2 flex items-center gap-2 text-xs text-zinc-300 cursor-pointer select-none">
+            <label className="mt-2 flex items-center gap-2 text-xs text-gray-700 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={toutesCommunes}
@@ -265,8 +265,8 @@ export function Sourcer() {
             </label>
           </div>
           <div className="w-48">
-            <label className="mb-1 block text-xs font-medium text-zinc-400">
-              Max par secteur : <span className="text-white font-semibold">{maxParSecteur}</span>
+            <label className="mb-1 block text-xs font-medium text-gray-400">
+              Max par secteur : <span className="text-gray-900 font-semibold">{maxParSecteur}</span>
             </label>
             <input
               type="range" min={5} max={100} step={5}
@@ -280,13 +280,13 @@ export function Sourcer() {
         {/* Secteurs */}
         <div>
           <div className="mb-3 flex items-center justify-between">
-            <label className="text-xs font-medium text-zinc-400">
-              Secteurs <span className="text-indigo-400 ml-1">({secteurs.length} sélectionnés)</span>
+            <label className="text-xs font-medium text-gray-400">
+              Secteurs <span className="text-indigo-600 ml-1">({secteurs.length} sélectionnés)</span>
             </label>
             <div className="flex gap-3 text-xs">
-              <button onClick={selectAll} className="text-indigo-400 hover:text-indigo-300">Tout ({data.secteurs.length})</button>
-              <span className="text-zinc-600">|</span>
-              <button onClick={clearAll} className="text-zinc-400 hover:text-zinc-300">Effacer</button>
+              <button onClick={selectAll} className="text-indigo-600 hover:text-indigo-700">Tout ({data.secteurs.length})</button>
+              <span className="text-gray-300">|</span>
+              <button onClick={clearAll} className="text-gray-400 hover:text-gray-600">Effacer</button>
             </div>
           </div>
 
@@ -295,7 +295,7 @@ export function Sourcer() {
             value={searchSecteur}
             onChange={(e) => setSearchSecteur(e.target.value)}
             placeholder="Rechercher un secteur..."
-            className="mb-3 w-full rounded bg-zinc-800 px-3 py-1.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="mb-3 w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
 
           {/* Mode recherche */}
@@ -306,7 +306,7 @@ export function Sourcer() {
                   key={s}
                   onClick={() => toggleSecteur(s)}
                   className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                    secteurs.includes(s) ? "bg-indigo-600 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                    secteurs.includes(s) ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                   }`}
                 >
                   {s}
@@ -320,10 +320,10 @@ export function Sourcer() {
                 const selectedInCat = list.filter((s) => secteurs.includes(s)).length
                 const isOpen = openCat === cat
                 return (
-                  <div key={cat} className="rounded-lg border border-zinc-700 overflow-hidden">
+                  <div key={cat} className="rounded-lg border border-gray-200 overflow-hidden">
                     <button
                       onClick={() => setOpenCat(isOpen ? null : cat)}
-                      className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-zinc-800 transition-colors"
+                      className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-gray-50 transition-colors"
                     >
                       <div className="flex items-center gap-2">
                         <span
@@ -332,18 +332,18 @@ export function Sourcer() {
                             selectedInCat === list.length
                               ? "bg-indigo-600 border-indigo-600 text-white"
                               : selectedInCat > 0
-                              ? "bg-indigo-900 border-indigo-700 text-indigo-300"
-                              : "border-zinc-600 text-zinc-500 hover:border-zinc-400"
+                              ? "bg-indigo-100 border-indigo-200 text-indigo-700"
+                              : "border-gray-300 text-gray-400 hover:border-gray-400"
                           }`}
                         >
                           {selectedInCat > 0 ? `${selectedInCat}/${list.length}` : "Tout"}
                         </span>
-                        <span className="text-zinc-200 font-medium">{cat}</span>
+                        <span className="text-gray-700 font-medium">{cat}</span>
                       </div>
-                      <span className="text-zinc-500 text-xs">{isOpen ? "▲" : "▼"}</span>
+                      <span className="text-gray-400 text-xs">{isOpen ? "▲" : "▼"}</span>
                     </button>
                     {isOpen && (
-                      <div className="flex flex-wrap gap-2 px-3 pb-3 pt-1 border-t border-zinc-700 bg-zinc-800/40">
+                      <div className="flex flex-wrap gap-2 px-3 pb-3 pt-1 border-t border-gray-200 bg-gray-50">
                         {list.map((s) => (
                           <button
                             key={s}
@@ -351,7 +351,7 @@ export function Sourcer() {
                             className={`rounded-full px-3 py-1 text-xs transition-colors ${
                               secteurs.includes(s)
                                 ? "bg-indigo-600 text-white"
-                                : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                                : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                             }`}
                           >
                             {s}
@@ -381,11 +381,11 @@ export function Sourcer() {
 
       {/* Log */}
       {log.length > 0 && (
-        <div className="rounded-xl border border-zinc-700 bg-zinc-950 p-4">
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Progression</h3>
+        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">Progression</h3>
           <div className="max-h-64 overflow-y-auto space-y-1 font-mono text-xs">
             {log.map((line, i) => (
-              <div key={i} className={line.type === "done" ? "text-emerald-400 font-semibold" : "text-zinc-400"}>
+              <div key={i} className={line.type === "done" ? "text-emerald-600 font-semibold" : "text-gray-500"}>
                 {line.type === "done"
                   ? `✅ Terminé — ${line.totalInserts} nouveau(x) prospect(s) ajouté(s)`
                   : `→ ${line.message}`}
@@ -393,7 +393,7 @@ export function Sourcer() {
             ))}
           </div>
           {done && (
-            <a href="/pipeline" className="mt-4 inline-block rounded bg-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-600">
+            <a href="/pipeline" className="mt-4 inline-block rounded bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-500">
               Voir le pipeline →
             </a>
           )}
