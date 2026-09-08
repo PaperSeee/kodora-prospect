@@ -204,13 +204,18 @@ export const RUN_TIME_BUDGET_MS = 52_000
 // run/route.ts (le cron d'envoi quotidien) lit ce flag et sort tôt si false.
 export const SEND_EMAIL_ENABLED = false
 
-// Template WhatsApp, substitution de {metier} et {commune}. Le message reste
-// volontairement court et pose une question ouverte plutôt qu'un pitch —
-// c'est un premier contact, pas l'email 1 (voir email-templates.ts).
+// Template WhatsApp, substitution de {metier} et {commune}. Un premier
+// message WhatsApp qui convertit ressemble à ce qu'un humain tape vraiment :
+// court (une respiration, pas un pavé), le "pourquoi je t'écris" tient en une
+// phrase, zéro jargon commercial ("solution", "opportunité", "je me
+// permets"), et une seule question fermée/facile à la fin — WhatsApp est un
+// canal de réponse rapide, pas un canal de lecture. Signé "Ilias" (pas
+// "Kodora, growth operator") : sur ce canal, un nom de personne répond mieux
+// qu'un nom d'entreprise.
 export const WHATSAPP_MESSAGE_TEMPLATE =
-  "Bonjour, Ilias. Je gère un site qui reçoit des demandes de {metier} sur {commune}. " +
-  "Je transmets les demandes à un artisan, je ne fais pas le métier. " +
-  "Vous prenez encore des clients en ce moment ?"
+  "Bonjour, Ilias ici 👋 Je reçois régulièrement des demandes de {metier} à " +
+  "{commune} via un site que je gère, et je les redirige vers un artisan du coin. " +
+  "Ça vous intéresse que je vous envoie les prochaines ?"
 
 export function whatsappMessage(secteur: string, commune: string): string {
   const metier = secteurMeta(secteur).motCle
