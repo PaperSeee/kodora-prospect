@@ -7,6 +7,15 @@
 // Garde uniquement les chiffres, en retirant le préfixe international s'il
 // est déjà présent (+32 ou 0032) pour repartir d'une base "0xxxxxxxx"
 // uniforme avant de reconstruire le format international E.164.
+//
+// Exporté sous le nom toLocalDigits parce que la recherche du tableau
+// WhatsApp (lib/search.ts) en a besoin : comparer un numéro tapé à la main
+// à un numéro stocké n'a de sens que si les deux passent par la même
+// normalisation, sinon "+32 493..." ne retrouve pas "0493...".
+export function toLocalDigits(raw: string | null | undefined): string {
+  return raw ? digitsOnly(raw) : ""
+}
+
 function digitsOnly(raw: string): string {
   let d = raw.replace(/\D/g, "")
   if (d.startsWith("0032")) d = d.slice(2)

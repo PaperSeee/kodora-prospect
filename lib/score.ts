@@ -57,7 +57,11 @@ export function scoreProspect(
   if (sitePourri && a >= 20) {
     score += 15
     goldStar = true
-    angle = `⭐ Cible en or — ${angle.replace("⭐ ", "")} + ${a} avis`
+    // Pas d'emoji dans l'angle : il est affiché tel quel dans le tableau et
+    // le badge "Cible en or" est déjà rendu à part (goldStar). Les angles
+    // générés avant sept. 2026 en contiennent un — stripEmoji() dans
+    // lib/search.ts le retire à l'affichage.
+    angle = `Cible en or — ${angle} + ${a} avis`
   }
 
   return { score: Math.min(score, 100), angle, goldStar }
