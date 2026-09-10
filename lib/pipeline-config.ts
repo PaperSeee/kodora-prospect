@@ -228,13 +228,15 @@ export const SEND_EMAIL_ENABLED = false
 // court (une respiration, pas un pavé), le "pourquoi je t'écris" tient en une
 // phrase, zéro jargon commercial ("solution", "opportunité", "je me
 // permets"), et une seule question fermée/facile à la fin — WhatsApp est un
-// canal de réponse rapide, pas un canal de lecture. Signé "Ilias" (pas
-// "Kodora, growth operator") : sur ce canal, un nom de personne répond mieux
-// qu'un nom d'entreprise.
+// canal de réponse rapide, pas un canal de lecture. Pas de signature "Ilias"
+// dans le corps du message : sur WhatsApp le prénom est déjà visible sur le
+// profil, le répéter sonne comme un template. On ancre sur une recherche
+// réelle ("en cherchant un X à Y je suis tombé sur vous") plutôt que sur un
+// pitch générique — ça sonne vécu, pas envoyé à 200 contacts.
 export const WHATSAPP_MESSAGE_TEMPLATE =
-  "Bonjour, Ilias ici 👋 Je reçois régulièrement des demandes de {metier} à " +
-  "{commune} via un site que je gère, et je les redirige vers un artisan du coin. " +
-  "Ça vous intéresse que je vous envoie les prochaines ?"
+  "Bonjour, en cherchant un {metier} à {commune} je suis tombé sur votre entreprise. " +
+  "Je gère un site qui reçoit ce genre de demandes sur {commune}, je les transmets " +
+  "à un artisan du coin (je ne fais pas le métier moi-même). Vous prenez encore des clients en ce moment ?"
 
 export function whatsappMessage(secteur: string, commune: string): string {
   const metier = secteurMeta(secteur).motCle
