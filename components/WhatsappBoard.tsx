@@ -419,7 +419,7 @@ function QueueView({
 
         <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
           <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Message envoyé</p>
-          <p className="text-sm text-gray-700">{message}</p>
+          <p className="whitespace-pre-line text-sm text-gray-700">{message}</p>
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">

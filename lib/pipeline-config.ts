@@ -230,13 +230,14 @@ export const SEND_EMAIL_ENABLED = false
 // permets"), et une seule question fermée/facile à la fin — WhatsApp est un
 // canal de réponse rapide, pas un canal de lecture. Pas de signature "Ilias"
 // dans le corps du message : sur WhatsApp le prénom est déjà visible sur le
-// profil, le répéter sonne comme un template. On ancre sur une recherche
-// réelle ("en cherchant un X à Y je suis tombé sur vous") plutôt que sur un
-// pitch générique — ça sonne vécu, pas envoyé à 200 contacts.
+// profil, le répéter sonne comme un template. On ancre sur un manque à
+// gagner concret ("j'ai eu des demandes que je n'ai pas pu transmettre")
+// plutôt qu'un pitch générique — ça crée une urgence réelle (du business
+// perdu, là, maintenant) sans sonner comme un démarchage.
 export const WHATSAPP_MESSAGE_TEMPLATE =
-  "Bonjour, en cherchant un {metier} à {commune} je suis tombé sur votre entreprise. " +
-  "Je gère un site qui reçoit ce genre de demandes sur {commune}, je les transmets " +
-  "à un artisan du coin (je ne fais pas le métier moi-même). Vous prenez encore des clients en ce moment ?"
+  "Bonjour, j'ai eu des demandes de {metier} sur {commune} cette semaine que je n'ai pas pu transmettre.\n\n" +
+  "Je gère le site, je ne fais pas le métier.\n\n" +
+  "Vous prenez encore des clients en ce moment ?"
 
 export function whatsappMessage(secteur: string, commune: string): string {
   const metier = secteurMeta(secteur).motCle
@@ -248,3 +249,44 @@ export function whatsappMessage(secteur: string, commune: string): string {
 // spammer deux fois la même entreprise en dessous d'un délai raisonnable de
 // relance.
 export const CONTACT_COOLDOWN_JOURS = 90
+
+// ── SCRIPTS DE RÉPONSE ──
+//
+// Pré-réponses pour la suite de la conversation WhatsApp, affichées dans
+// l'onglet /reponses. Trois familles : les objections les plus fréquentes
+// (à copier-coller telles quelles ou à adapter), le message de closing une
+// fois que le prospect dit oui, et un rappel des principes qui font que ça
+// sonne humain (ne jamais nier, ne jamais mentir sur le statut de société —
+// un artisan repère le baratin en trois secondes).
+export interface Objection {
+  question: string
+  reponse: string
+}
+
+export const OBJECTIONS: Objection[] = [
+  {
+    question: "« C'est combien ? »",
+    reponse: "Les trois premières sont offertes. Après, on se cale sur ce que ça vous rapporte réellement, pas sur un forfait.",
+  },
+  {
+    question: "« C'est comme Bobex, j'ai déjà donné. »",
+    reponse: "La différence, c'est que je n'envoie pas la même demande à cinq artisans. Vous êtes seul dessus.",
+  },
+  {
+    question: "« Vous êtes une société ? »",
+    reponse: "Pas encore, je démarre. C'est aussi pour ça que les premières sont gratuites.",
+  },
+]
+
+// Message de closing : envoyé une fois que le prospect a dit oui (ou une
+// variante de oui). Explique le mécanisme en trois temps courts (comment ça
+// marche → pourquoi c'est gratuit au début → l'action immédiate qu'on
+// attend de lui), et termine par une question fermée à choix binaire plutôt
+// qu'une question ouverte — plus facile et plus rapide à répondre sur
+// WhatsApp.
+export const WHATSAPP_CLOSING_MESSAGE =
+  "Parfait. Concrètement : quand une demande arrive, je vous envoie le contact avec le problème et l'adresse. " +
+  "Vous rappelez, vous décidez si vous prenez.\n\n" +
+  "Je paie la publicité, vous ne payez rien pour ça. Les 3 premières demandes sont offertes pour que vous voyiez " +
+  "ce que ça vaut. Ensuite on se met d'accord sur un prix par appel.\n\n" +
+  "Je vous envoie la prochaine dès qu'elle arrive. SMS ou téléphone ?"

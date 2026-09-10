@@ -328,7 +328,7 @@ export function ProspectPanel({
           {/* Message pré-rempli, pour vérifier avant d'ouvrir WhatsApp */}
           {waUrl && (
             <Section titre="Message pré-rempli">
-              <p className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">{message}</p>
+              <p className="whitespace-pre-line rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">{message}</p>
             </Section>
           )}
         </div>

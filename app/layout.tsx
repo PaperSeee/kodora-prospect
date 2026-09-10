@@ -20,6 +20,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <a href="/whatsapp" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
             WhatsApp
           </a>
+          <a href="/reponses" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+            Réponses
+          </a>
           <a href="/pipeline" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
             Pipeline
           </a>
