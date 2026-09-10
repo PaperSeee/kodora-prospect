@@ -11,6 +11,15 @@ type Row = PanelRow
 const VIEW_KEY = "whatsapp-board-view"
 const PAGE = 100
 
+// Cache en mémoire du module (survit tant que l'onglet du navigateur reste
+// ouvert, y compris en changeant de page via next/link qui démonte ce
+// composant). Sans ça, revenir sur /whatsapp remet `rows` à null et réaffiche
+// "Chargement…" à chaque fois, alors que les données changent rarement d'une
+// minute à l'autre. Au montage, la donnée en cache s'affiche immédiatement
+// et un fetch se fait quand même en arrière-plan pour la rafraîchir.
+let cacheRows: Row[] | null = null
+let cacheCooldown = 90
+
 type ViewMode = "file" | "tableau"
 type Onglet = "a_contacter" | "contactes"
 type CanalFilter = "" | "whatsapp" | "appeler"
@@ -30,8 +39,8 @@ function joursDepuis(iso: string): number {
 }
 
 export function WhatsappBoard() {
-  const [rows, setRows] = useState<Row[] | null>(null)
-  const [cooldownJours, setCooldownJours] = useState(90)
+  const [rows, setRows] = useState<Row[] | null>(cacheRows)
+  const [cooldownJours, setCooldownJours] = useState(cacheCooldown)
   // Écrase la valeur serveur le temps d'un aller-retour, pour que cocher
   // "contacté" soit instantané sans recharger les 2 500 lignes.
   const [overrides, setOverrides] = useState<Record<number, string | null>>({})
@@ -48,6 +57,8 @@ export function WhatsappBoard() {
   const load = useCallback(async () => {
     const res = await fetch("/api/whatsapp")
     const data = await res.json()
+    cacheRows = data.rows
+    cacheCooldown = data.cooldownJours
     setRows(data.rows)
     setCooldownJours(data.cooldownJours)
   }, [])

@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -14,21 +15,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <span className="text-sm font-bold tracking-tight text-gray-900">
             Kodora <span className="text-indigo-600">Prospect</span>
           </span>
-          <a href="/dashboard" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+          <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
             Dashboard
-          </a>
-          <a href="/whatsapp" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+          </Link>
+          <Link href="/whatsapp" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
             WhatsApp
-          </a>
-          <a href="/reponses" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+          </Link>
+          <Link href="/reponses" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
             Réponses
-          </a>
-          <a href="/pipeline" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+          </Link>
+          <Link href="/pipeline" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
             Pipeline
-          </a>
-          <a href="/sourcer" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+          </Link>
+          <Link href="/sourcer" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
             Sourcer
-          </a>
+          </Link>
         </nav>
         <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
       </body>
