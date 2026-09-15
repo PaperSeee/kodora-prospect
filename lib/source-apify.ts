@@ -31,12 +31,27 @@ interface ApifyPlace {
 export async function fetchApifyGoogleMaps(
   secteur: string,
   ville: string,
-  maxResults: number
+  maxResults: number,
+  deadline?: number
 ): Promise<PlaceResult[]> {
   const token = process.env.APIFY_API_TOKEN
   if (!token) return []
 
-  const url = `https://api.apify.com/v2/acts/${ACTOR_ID}/run-sync-get-dataset-items?token=${token}`
+  // La route appelante (/api/sourcing) est plafonnée à 60s (Vercel Hobby,
+  // voir maxDuration dans route.ts) — sans respecter la deadline du run
+  // comme fetchOverpass le fait déjà, un run-sync Apify de 60-90s se ferait
+  // tuer par Vercel AVANT de répondre, sans jamais logger d'erreur (constaté
+  // en prod le 2026-09-15 : la progression restait bloquée sur "Sourcing
+  // Apify..." sans suite). Le budget est le temps restant avant deadline
+  // moins une marge, plafonné à 20s dans tous les cas — largement suffisant
+  // pour maxCrawledPlacesPerSearch=10, et on préfère 0 résultat propre à un
+  // hang qui casse tout le run.
+  const tempsRestant = deadline ? deadline - Date.now() : 20_000
+  if (tempsRestant < 8000) return [] // pas le temps de lancer un run Apify utile
+
+  const budgetMs = Math.min(Math.max(tempsRestant - 3000, 5000), 20_000)
+
+  const url = `https://api.apify.com/v2/acts/${ACTOR_ID}/run-sync-get-dataset-items?token=${token}&timeout=${Math.floor(budgetMs / 1000)}`
   const body = {
     searchStringsArray: [`${secteur} ${ville}`],
     maxCrawledPlacesPerSearch: maxResults,
@@ -44,17 +59,24 @@ export async function fetchApifyGoogleMaps(
     countryCode: "be",
   }
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    // Le run synchrone peut prendre plusieurs dizaines de secondes (scraping
-    // réel, pas une API instantanée) — budget généreux, appelé en dehors du
-    // chemin critique de la route SSE (voir sourceSecteur, appelé après les
-    // fallbacks gratuits qui ont déjà consommé du temps).
-    signal: AbortSignal.timeout(90_000),
-  })
-  if (!res.ok) return []
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(budgetMs),
+    })
+  } catch (err) {
+    console.error(`[apify] fetch a expiré ou échoué (budget ${budgetMs}ms) :`, err)
+    return []
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "")
+    console.error(`[apify] réponse ${res.status} : ${text.slice(0, 300)}`)
+    return []
+  }
 
   const items = (await res.json()) as ApifyPlace[]
   if (!Array.isArray(items) || items.length === 0) return []

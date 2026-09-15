@@ -37,8 +37,21 @@ export async function fetchGooglePlaces(
   const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&language=fr&key=${key}`
 
   const res = await fetch(url)
-  if (!res.ok) return []
+  if (!res.ok) {
+    console.error(`[places] réponse HTTP ${res.status} pour "${query}"`)
+    return []
+  }
   const data = await res.json()
+  // L'API Google répond 200 même en cas d'erreur applicative (clé invalide,
+  // facturation désactivée, quota épuisé, API non activée) : le vrai statut
+  // est dans data.status, pas dans le code HTTP — sans ce log, ces échecs
+  // étaient indiscernables d'un "0 résultat" légitime (constaté en prod le
+  // 2026-09-15 pour "nuisibles", qui tombait ensuite sur OSM sans qu'on
+  // sache si Google Places avait vraiment été essayé).
+  if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+    console.error(`[places] statut "${data.status}" pour "${query}" : ${data.error_message ?? "(pas de détail)"}`)
+    return []
+  }
   if (!data.results?.length) return []
 
   const results: PlaceResult[] = []
@@ -124,7 +137,7 @@ export async function sourceSecteur(
     onProgress?.(`Sourcing Apify (Google Maps) pour : ${secteur}...`)
     try {
       const { fetchApifyGoogleMaps } = await import("@/lib/source-apify")
-      prospects = await fetchApifyGoogleMaps(secteur, ville, maxParSecteur)
+      prospects = await fetchApifyGoogleMaps(secteur, ville, maxParSecteur, deadline)
     } catch (err) {
       console.error("[sourcing] Apify error:", err)
     }
