@@ -107,19 +107,30 @@ export const RELANCES_SEULEMENT_APRES = new Date("2026-09-02")
 // Rebranché le 2026-09-15 sur des clics Search Console réels (cockpit SEO,
 // fenêtre 28 j) plutôt qu'une hiérarchie mesurée par email (invalidée le
 // 2026-09-02, compteurs fabriqués). Deux niveaux, pas une liste plate :
-// nuisibles (Allo Guêpes +27 %, SOS Punaises), vitrier (Allo Vitrier) et
-// couvreur (proxy du site "gouttières", nettoyage-gouttieres-bruxelles.be)
-// sont les sites que le propriétaire du produit identifie comme ceux qui
-// fonctionnent bien — priorité forte, mise à jour le 2026-09-15 pour les
-// inclure explicitement. Électricien/serrurier/chauffagiste ont un peu de
-// trafic réel mais nettement moins. Débouchage, plombier, humidité et
-// dégâts des eaux restent neutres faute de site avec clics mesurés.
-// "Bornes de recharge" (borneinstall.be) n'a PAS de secteur correspondant :
-// aucun tag OSM ne source des installateurs de bornes (voir
-// SECTEURS_SANS_SITE plus bas) — impossible à prioriser tant que ce
-// sourcing n'existe pas. À revoir à chaque nouvelle lecture du cockpit
-// (/perf) qui changerait ce classement.
-export const SECTEURS_PRIORITAIRES = new Set<string>(["nuisibles", "vitrier", "couvreur"])
+// vitrier (Allo Vitrier) et couvreur (proxy du site "gouttières",
+// nettoyage-gouttieres-bruxelles.be) sont les sites que le propriétaire du
+// produit identifie comme ceux qui fonctionnent bien — priorité forte.
+// Électricien/serrurier/chauffagiste ont un peu de trafic réel mais
+// nettement moins. Débouchage, plombier, humidité et dégâts des eaux
+// restent neutres faute de site avec clics mesurés.
+//
+// "nuisibles" a été RETIRÉ de la priorité forte le 2026-09-15 (après y avoir
+// été ajouté plus tôt le même jour) : constaté en prod (voir logs Sourcer)
+// que le sourcing OSM renvoie 0 résultat sur toutes les communes essayées.
+// Vérifié indépendamment via Overpass — seulement 3 nœuds craft/office=
+// pest_control dans TOUTE la Belgique (0 sur Bruxelles). Les entreprises de
+// dératisation n'ont quasiment pas pignon sur rue à cartographier, donc OSM
+// ne les répertorie pas — contrairement à serrurier/vitrier/électricien qui
+// s'y trouvent bien. Le fallback Google Places existant dans le code
+// (fetchGooglePlaces, lib/source-prospects.ts) résoudrait ça, mais aucune
+// GOOGLE_PLACES_API_KEY n'est configurée sur le projet — décision du
+// 2026-09-15 de ne pas en ajouter pour l'instant. Prioriser un secteur
+// qu'aucune source active ne peut peupler serait une promesse vide (voir
+// SECTEURS_SANS_SOURCE_REELLE plus bas, qui documente ce cas précis pour
+// l'UI). Nuisibles reste dans SECTEURS_ROTATION / SECTEUR_OSM au cas où une
+// clé Google Places serait ajoutée plus tard — à rebrancher en priorité
+// forte à ce moment-là, pas avant.
+export const SECTEURS_PRIORITAIRES = new Set<string>(["vitrier", "couvreur"])
 export const SECTEURS_SECONDAIRES = new Set<string>(["électricien", "serrurier", "chauffagiste"])
 
 export const SECTEUR_PRIORITE_BONUS = 15
@@ -160,17 +171,21 @@ export function secteurPrioriteTier(secteur: string): number {
 // sélecteur de secteur (voir WhatsappBoard.tsx), pas au sourcing lui-même.
 export const SECTEURS_SANS_SITE = new Set<string>(["débouchage", "plombier", "humidité", "dégâts des eaux"])
 
-// Sites leads dont le métier n'a AUCUN secteur sourcé du tout (aucun
-// prospect avec ce `secteur` n'existe ni ne peut exister aujourd'hui) —
-// différent de SECTEURS_SANS_SITE, qui liste des secteurs qui SONT sourcés
-// mais dont le site correspondant ne performe pas. "Bornes de recharge"
-// (borneinstall.be) en fait partie : aucun tag OSM ne distingue un
-// installateur de bornes d'un électricien généraliste, donc aucun sourcing
-// dédié n'existe. Ne peut pas apparaître dans le sélecteur de secteur (qui
-// ne liste que les secteurs déjà présents en base) — affiché à part dans la
-// barre d'outils de /whatsapp pour que ça reste visible plutôt que silencieux.
+// Sites leads dont le métier ne peut concrètement ramener AUCUN prospect
+// aujourd'hui, malgré un `secteur` déclaré dans le code — soit parce
+// qu'aucun secteur sourcé n'existe pour lui du tout (bornes), soit parce que
+// le secteur existe mais que la seule source active (OSM, gratuite) ne
+// contient quasiment pas ce type d'entreprise en Belgique (nuisibles — voir
+// le commentaire détaillé sur SECTEURS_PRIORITAIRES). Différent de
+// SECTEURS_SANS_SITE, qui liste des secteurs qui SONT sourcés ET peuplés
+// mais dont le SITE LEAD correspondant ne performe pas encore. Ne peut pas
+// apparaître dans le sélecteur de secteur de /whatsapp (qui ne liste que les
+// secteurs déjà présents en base, donc "nuisibles" avec 0 prospect n'y
+// apparaît jamais non plus) — affiché à part dans la barre d'outils pour que
+// ça reste visible plutôt que silencieux.
 export const SITES_SANS_SECTEUR_SOURCE: { site: string; motif: string }[] = [
   { site: "Bornes de recharge (borneinstall.be)", motif: "aucun tag OSM ne distingue un installateur de bornes d'un électricien — pas de sourcing dédié possible aujourd'hui" },
+  { site: "Allo Guêpes / SOS Punaises (nuisibles)", motif: "secteur sourcé mais 0 résultat OSM constaté en prod (3 pest_control sur toute la Belgique) — nécessite une clé Google Places, pas encore configurée" },
 ]
 
 // Communes ciblées, par ordre de priorité. On commence par Bruxelles (plus gros
