@@ -115,6 +115,21 @@ export async function sourceSecteur(
     }
   }
 
+  // Apify (payant, ~0,004$/fiche) : uniquement si OSM n'a rien renvoyé ET
+  // qu'un token est configuré (voir lib/source-apify.ts) — sert les secteurs
+  // qu'OSM ne répertorie quasiment pas en Belgique (ex. nuisibles/
+  // dératisation, constaté à 0 résultat en prod le 2026-09-15). Sans
+  // APIFY_API_TOKEN, cette étape est un no-op silencieux.
+  if (prospects.length === 0) {
+    onProgress?.(`Sourcing Apify (Google Maps) pour : ${secteur}...`)
+    try {
+      const { fetchApifyGoogleMaps } = await import("@/lib/source-apify")
+      prospects = await fetchApifyGoogleMaps(secteur, ville, maxParSecteur)
+    } catch (err) {
+      console.error("[sourcing] Apify error:", err)
+    }
+  }
+
   if (prospects.length === 0) {
     onProgress?.(`Fallback scraper pour : ${secteur}...`)
     try {
