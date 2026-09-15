@@ -1,19 +1,29 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { CONTACT_COOLDOWN_JOURS, secteurPrioriteBonus, SECTEURS_SANS_SITE } from "@/lib/pipeline-config"
+import { CONTACT_COOLDOWN_JOURS, secteurPrioriteTier, SECTEURS_SANS_SITE } from "@/lib/pipeline-config"
 
-// Liste des prospects pour le tableau WhatsApp (/whatsapp), triés par score
-// décroissant, score augmenté d'un bonus par secteur (voir
-// secteurPrioriteBonus) — même tri que le canal email qu'il remplace (voir
-// app/api/pipeline/run/route.ts).
+// Liste des prospects pour le tableau WhatsApp (/whatsapp), triés à DEUX
+// NIVEAUX : d'abord le rang de priorité métier (secteurPrioriteTier — 0 =
+// site lead en forte performance, 1 = trafic mesuré plus faible, 2 =
+// neutre), puis le score de diagnostic décroissant à l'intérieur d'un même
+// rang.
 //
-// Le bonus est appliqué ici, en lecture, plutôt que réécrit sur la colonne
-// `score` en base : les ~2500 prospects déjà sourcés avant le rebranchement
-// du 2026-09-15 doivent aussi remonter selon les métiers qui performent
-// réellement (clics Search Console des sites leads), sans qu'on perde la
-// trace du score de diagnostic d'origine (state utile ailleurs — sourcing,
-// audit). Seuls les nouveaux prospects sourcés après cette date ont le
-// bonus écrit dans leur score stocké (voir lib/source-prospects.ts).
+// Un bonus additif au score (essayé d'abord, le 2026-09-15) ne suffisait
+// pas : scoreProspect plafonne à 100, et une bonne partie des ~2500
+// prospects déjà en base l'atteint déjà (site pourri + beaucoup d'avis =
+// plusieurs flags cumulés, écrêtés à 100) — un menuisier à 100 restait donc
+// toujours devant un nuisibles à 85+15, alors que c'est exactement l'ordre
+// qu'on veut inverser. Le tri à deux niveaux n'a pas ce problème : le rang
+// prime toujours sur le score, quel que soit l'écart de score.
+//
+// Le rang est calculé ici, en lecture, plutôt que réécrit en base : les
+// prospects déjà sourcés doivent aussi remonter selon les métiers qui
+// performent réellement (clics Search Console des sites leads), sans qu'on
+// perde la trace du score de diagnostic d'origine (utile ailleurs —
+// sourcing, audit). Le bonus additif (secteurPrioriteBonus) reste appliqué
+// au score stocké des nouveaux prospects sourcés (lib/source-prospects.ts),
+// où le score n'est pas encore saturé et où ça fait une vraie différence
+// dans l'ordre d'envoi.
 //
 // On renvoie TOUS les prospects joignables, chacun avec la date de son
 // dernier contact WhatsApp (null s'il n'a jamais été contacté), et c'est le
@@ -57,11 +67,11 @@ export async function GET() {
       return {
         ...p,
         contactedAt: at ? new Date(at).toISOString() : null,
-        triScore: Math.min(p.score + secteurPrioriteBonus(p.secteur), 100),
+        secteurTier: secteurPrioriteTier(p.secteur),
         secteurSansSite: SECTEURS_SANS_SITE.has(p.secteur.toLowerCase().trim()),
       }
     })
-    .sort((a, b) => b.triScore - a.triScore)
+    .sort((a, b) => a.secteurTier - b.secteurTier || b.score - a.score)
 
   return NextResponse.json({ rows, cooldownJours: CONTACT_COOLDOWN_JOURS })
 }

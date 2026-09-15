@@ -455,7 +455,7 @@ function QueueView({
                 Cible en or
               </span>
             )}
-            <span className={`text-xl font-semibold tabular-nums ${SCORE_COLOR(row.triScore ?? row.score)}`}>{row.triScore ?? row.score}</span>
+            <span className={`text-xl font-semibold tabular-nums ${SCORE_COLOR(row.score)}`}>{row.score}</span>
           </div>
         </div>
 
@@ -637,7 +637,7 @@ function ProspectRow({
       <td className="max-w-xs truncate px-4 py-2.5 text-gray-600" title={row.angle ? stripEmoji(row.angle) : ""}>
         {row.angle ? stripEmoji(row.angle) : "—"}
       </td>
-      <td className={`px-4 py-2.5 text-right font-semibold tabular-nums ${SCORE_COLOR(row.triScore ?? row.score)}`}>{row.triScore ?? row.score}</td>
+      <td className={`px-4 py-2.5 text-right font-semibold tabular-nums ${SCORE_COLOR(row.score)}`}>{row.score}</td>
       <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
         {waUrl ? (
           <a href={waUrl} target="_blank" rel="noreferrer" className="inline-flex rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-emerald-500">

@@ -28,7 +28,7 @@ export interface PanelRow {
   goldStar: boolean
   statut: string
   contactedAt: string | null
-  triScore?: number
+  secteurTier?: number
   secteurSansSite?: boolean
 }
 

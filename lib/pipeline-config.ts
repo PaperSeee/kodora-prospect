@@ -116,13 +116,31 @@ export const SECTEUR_SECONDAIRE_BONUS = 7
 
 // Bonus de tri appliqué à un secteur donné (0 si neutre). Ne modifie jamais
 // le score stocké d'un prospect existant — voir son usage dans
-// app/api/whatsapp/route.ts, qui trie sur score + ce bonus sans toucher à la
-// colonne `score` en base.
+// lib/source-prospects.ts (nouveaux prospects sourcés, où le score n'est
+// pas encore saturé).
 export function secteurPrioriteBonus(secteur: string): number {
   const s = secteur.toLowerCase().trim()
   if (SECTEURS_PRIORITAIRES.has(s)) return SECTEUR_PRIORITE_BONUS
   if (SECTEURS_SECONDAIRES.has(s)) return SECTEUR_SECONDAIRE_BONUS
   return 0
+}
+
+// Rang de priorité métier (0 = forte, 1 = secondaire, 2 = neutre), utilisé
+// pour un TRI À DEUX NIVEAUX plutôt qu'un bonus additif — voir
+// app/api/whatsapp/route.ts. Le score de diagnostic (scoreProspect) plafonne
+// à 100 et une bonne partie du haut de la liste (~2500 prospects) l'atteint
+// déjà (site pourri + beaucoup d'avis = plusieurs flags cumulés au-delà de
+// 100, écrêtés) : un bonus additif de +15 ne peut pas faire remonter un
+// nuisibles à 85 au-dessus d'un menuisier déjà à 100, alors que c'est
+// exactement le but recherché. Le tri à deux niveaux règle ça sans plafond :
+// le métier prioritaire passe TOUJOURS avant, quel que soit le score des uns
+// et des autres ; à l'intérieur d'un même rang, le score départage comme
+// avant.
+export function secteurPrioriteTier(secteur: string): number {
+  const s = secteur.toLowerCase().trim()
+  if (SECTEURS_PRIORITAIRES.has(s)) return 0
+  if (SECTEURS_SECONDAIRES.has(s)) return 1
+  return 2
 }
 
 // Secteurs sourcés par SECTEURS_ROTATION mais qui n'ont aujourd'hui aucun
