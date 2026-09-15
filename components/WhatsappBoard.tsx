@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback, type ReactNode } from "react"
 import { isMobileBe, whatsappUrl, toTelHref } from "@/lib/phone"
-import { whatsappMessage } from "@/lib/pipeline-config"
+import { whatsappMessage, SECTEURS_PRIORITAIRES, SECTEURS_SECONDAIRES, SECTEURS_SANS_SITE } from "@/lib/pipeline-config"
 import { matchesQuery, stripEmoji } from "@/lib/search"
 import { ProspectPanel, type PanelRow } from "./ProspectPanel"
 
@@ -36,6 +36,16 @@ function canalDe(row: Row): CanalFilter | null {
 
 function joursDepuis(iso: string): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
+}
+
+// Niveau de priorité d'un secteur — voir pipeline-config.ts, rebranché sur
+// les clics Search Console réels des sites leads (cockpit /perf).
+type PrioriteNiveau = "forte" | "secondaire" | null
+function prioriteDe(secteur: string): PrioriteNiveau {
+  const s = secteur.toLowerCase().trim()
+  if (SECTEURS_PRIORITAIRES.has(s)) return "forte"
+  if (SECTEURS_SECONDAIRES.has(s)) return "secondaire"
+  return null
 }
 
 export function WhatsappBoard() {
@@ -193,7 +203,20 @@ export function WhatsappBoard() {
           </div>
 
           <Select value={communeFilter} onChange={(v) => { setCommuneFilter(v); apresFiltre() }} vide="Toutes les communes" options={communes} />
-          <Select value={secteurFilter} onChange={(v) => { setSecteurFilter(v); apresFiltre() }} vide="Tous les métiers" options={secteurs} capitalize />
+          <Select
+            value={secteurFilter}
+            onChange={(v) => { setSecteurFilter(v); apresFiltre() }}
+            vide="Tous les métiers"
+            options={secteurs}
+            capitalize
+            optionLabel={(s) => {
+              const p = prioriteDe(s)
+              if (p === "forte") return `${s} ★★ (site performant)`
+              if (p === "secondaire") return `${s} ★ (site en trafic)`
+              if (SECTEURS_SANS_SITE.has(s.toLowerCase().trim())) return `${s} — pas de site pour recevoir les leads`
+              return s
+            }}
+          />
 
           <div className="flex items-center gap-0.5 rounded-lg border border-gray-200 p-0.5">
             <BoutonCanal actif={canalFilter === ""} onClick={() => { setCanalFilter(""); apresFiltre() }}>Tous</BoutonCanal>
@@ -286,13 +309,14 @@ function Onglets({
 }
 
 function Select({
-  value, onChange, vide, options, capitalize,
+  value, onChange, vide, options, capitalize, optionLabel,
 }: {
   value: string
   onChange: (v: string) => void
   vide: string
   options: string[]
   capitalize?: boolean
+  optionLabel?: (o: string) => string
 }) {
   return (
     <select
@@ -301,7 +325,7 @@ function Select({
       className={`rounded-lg border border-gray-300 bg-white px-2.5 py-2 text-sm text-gray-700 transition-colors focus:border-gray-900 focus:outline-none ${capitalize ? "capitalize" : ""}`}
     >
       <option value="">{vide}</option>
-      {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      {options.map((o) => <option key={o} value={o}>{optionLabel ? optionLabel(o) : o}</option>)}
     </select>
   )
 }
@@ -317,6 +341,28 @@ function BoutonCanal({ actif, onClick, children }: { actif: boolean; onClick: ()
       {children}
     </button>
   )
+}
+
+// Signale un secteur dont le site lead correspondant performe réellement
+// (clics Search Console, voir pipeline-config.ts) — pas un jugement sur le
+// prospect lui-même, sur le canal qui le reçoit une fois signé.
+function PrioriteBadge({ secteur }: { secteur: string }) {
+  const p = prioriteDe(secteur)
+  if (p === "forte") {
+    return (
+      <span className="shrink-0 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-px text-[10px] font-medium text-emerald-800" title="Site lead en forte performance (clics Search Console)">
+        ★★ site performant
+      </span>
+    )
+  }
+  if (p === "secondaire") {
+    return (
+      <span className="shrink-0 rounded border border-sky-200 bg-sky-50 px-1.5 py-px text-[10px] font-medium text-sky-800" title="Site lead avec du trafic mesuré (clics Search Console)">
+        ★ site en trafic
+      </span>
+    )
+  }
+  return null
 }
 
 function BoutonVue({ actif, onClick, children }: { actif: boolean; onClick: () => void; children: ReactNode }) {
@@ -403,12 +449,13 @@ function QueueView({
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
+            <PrioriteBadge secteur={row.secteur} />
             {row.goldStar && (
               <span className="rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
                 Cible en or
               </span>
             )}
-            <span className={`text-xl font-semibold tabular-nums ${SCORE_COLOR(row.score)}`}>{row.score}</span>
+            <span className={`text-xl font-semibold tabular-nums ${SCORE_COLOR(row.triScore ?? row.score)}`}>{row.triScore ?? row.score}</span>
           </div>
         </div>
 
@@ -569,6 +616,7 @@ function ProspectRow({
       <td className="px-4 py-2.5">
         <div className="flex items-center gap-1.5">
           <span className="font-medium text-gray-900">{stripEmoji(row.nom)}</span>
+          <PrioriteBadge secteur={row.secteur} />
           {row.goldStar && (
             <span className="shrink-0 rounded border border-amber-200 bg-amber-50 px-1.5 py-px text-[10px] font-medium text-amber-800">
               Or
@@ -589,7 +637,7 @@ function ProspectRow({
       <td className="max-w-xs truncate px-4 py-2.5 text-gray-600" title={row.angle ? stripEmoji(row.angle) : ""}>
         {row.angle ? stripEmoji(row.angle) : "—"}
       </td>
-      <td className={`px-4 py-2.5 text-right font-semibold tabular-nums ${SCORE_COLOR(row.score)}`}>{row.score}</td>
+      <td className={`px-4 py-2.5 text-right font-semibold tabular-nums ${SCORE_COLOR(row.triScore ?? row.score)}`}>{row.triScore ?? row.score}</td>
       <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
         {waUrl ? (
           <a href={waUrl} target="_blank" rel="noreferrer" className="inline-flex rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-emerald-500">

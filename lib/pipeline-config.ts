@@ -93,14 +93,43 @@ export const RELANCES_SEULEMENT_APRES = new Date("2026-09-02")
 
 // Secteurs dont la conversion mesurée est forte : bonus de score au sourcing
 // pour qu'ils passent en tête de la file d'envoi (le pipeline envoie par
-// score décroissant).
+// score décroissant), et même bonus appliqué en lecture par l'API /whatsapp
+// pour que les ~2500 prospects déjà en base en profitent aussi, sans
+// réécrire leur score stocké (voir SECTEUR_PRIORITE_BONUS ci-dessous).
 //
-// Aucune donnée de conversion fiable avant les campagnes de septembre 2026.
-// Vidé le 2026-09-02 plutôt que rerempli avec une hiérarchie inventée : le
-// bonus reste neutre (aucun secteur favorisé) tant qu'un vrai backup n'a pas
-// tourné sur la rotation actuelle. Rebrancher une fois 2-3 semaines de
-// données réelles disponibles.
-export const SECTEURS_PRIORITAIRES = new Set<string>([])
+// Rebranché le 2026-09-15 sur des clics Search Console réels (cockpit SEO,
+// fenêtre 28 j) plutôt qu'une hiérarchie mesurée par email (invalidée le
+// 2026-09-02, compteurs fabriqués). Deux niveaux, pas une liste plate : les
+// sites nuisibles (Allo Guêpes +27 %, SOS Punaises) ont un trafic net
+// au-dessus du reste et méritent un bonus plus fort ; électricien/serrurier/
+// chauffagiste ont un peu de trafic réel mais nettement moins. Débouchage,
+// plombier, humidité et dégâts des eaux n'ont pour l'instant aucun site lead
+// avec des clics mesurés (soit pas de site dédié, soit 0 clic sur 28 j) :
+// ils restent neutres plutôt que de deviner une hiérarchie sans donnée.
+// À revoir à chaque nouvelle lecture du cockpit (/perf) qui changerait ce
+// classement.
+export const SECTEURS_PRIORITAIRES = new Set<string>(["nuisibles"])
+export const SECTEURS_SECONDAIRES = new Set<string>(["électricien", "serrurier", "chauffagiste"])
+
+export const SECTEUR_PRIORITE_BONUS = 15
+export const SECTEUR_SECONDAIRE_BONUS = 7
+
+// Bonus de tri appliqué à un secteur donné (0 si neutre). Ne modifie jamais
+// le score stocké d'un prospect existant — voir son usage dans
+// app/api/whatsapp/route.ts, qui trie sur score + ce bonus sans toucher à la
+// colonne `score` en base.
+export function secteurPrioriteBonus(secteur: string): number {
+  const s = secteur.toLowerCase().trim()
+  if (SECTEURS_PRIORITAIRES.has(s)) return SECTEUR_PRIORITE_BONUS
+  if (SECTEURS_SECONDAIRES.has(s)) return SECTEUR_SECONDAIRE_BONUS
+  return 0
+}
+
+// Secteurs sourcés par SECTEURS_ROTATION mais qui n'ont aujourd'hui aucun
+// site lead capable de recevoir les demandes générées (pas de site dédié,
+// ou trafic non mesuré) — sert uniquement au badge d'avertissement du
+// sélecteur de secteur (voir WhatsappBoard.tsx), pas au sourcing lui-même.
+export const SECTEURS_SANS_SITE = new Set<string>(["débouchage", "plombier", "humidité", "dégâts des eaux"])
 
 // Communes ciblées, par ordre de priorité. On commence par Bruxelles (plus gros
 // marché) ; quand un secteur y est épuisé, le pipeline passe automatiquement à

@@ -28,6 +28,8 @@ export interface PanelRow {
   goldStar: boolean
   statut: string
   contactedAt: string | null
+  triScore?: number
+  secteurSansSite?: boolean
 }
 
 interface FicheComplete {
