@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback, type ReactNode } from "react"
 import { isMobileBe, whatsappUrl, toTelHref } from "@/lib/phone"
-import { whatsappMessage, SECTEURS_PRIORITAIRES, SECTEURS_SECONDAIRES, SECTEURS_SANS_SITE } from "@/lib/pipeline-config"
+import { whatsappMessage, SECTEURS_PRIORITAIRES, SECTEURS_SECONDAIRES, SECTEURS_SANS_SITE, SITES_SANS_SECTEUR_SOURCE } from "@/lib/pipeline-config"
 import { matchesQuery, stripEmoji } from "@/lib/search"
 import { ProspectPanel, type PanelRow } from "./ProspectPanel"
 
@@ -241,6 +241,14 @@ export function WhatsappBoard() {
           <span className="tabular-nums">{contactes.length.toLocaleString("fr-BE")} contactés</span>
           <span className="text-gray-300">·</span>
           <span>recontact possible après {cooldownJours} j</span>
+          {SITES_SANS_SECTEUR_SOURCE.length > 0 && (
+            <>
+              <span className="text-gray-300">·</span>
+              <span className="text-amber-700" title={SITES_SANS_SECTEUR_SOURCE.map((s) => `${s.site} : ${s.motif}`).join(" — ")}>
+                ⚠ pas de prospects sourçables pour {SITES_SANS_SECTEUR_SOURCE.map((s) => s.site).join(", ")}
+              </span>
+            </>
+          )}
         </div>
       </div>
 

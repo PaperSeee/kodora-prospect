@@ -62,6 +62,13 @@ const SECTEUR_OSM: Record<string, string[]> = {
   "dégâts des eaux": ['["craft"="plumber"]'],
   "humidité": ['["craft"="plumber"]'],
   "nuisibles": ['["craft"="pest_control"]', '["office"="pest_control"]'],
+  // "gouttières" n'a pas de tag OSM dédié (vérifié le 2026-09-15 : aucun
+  // craft="gutter_cleaning" en usage réel, 0 résultat testé sur Bruxelles) —
+  // proxy sur "couvreur" (craft=roofer), métier plus large qui couvre aussi
+  // le nettoyage/réparation de gouttières en pratique. Moins précis que les
+  // autres secteurs de cette table : à remplacer si une source dédiée
+  // apparaît (annuaire pro, Google Places).
+  "couvreur": ['["craft"="roofer"]'],
 }
 
 // bbox Nominatim par ville, en cache pour la durée du process.

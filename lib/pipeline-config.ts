@@ -22,6 +22,11 @@
 // Repose sur lib/source-overpass.ts::SECTEUR_OSM pour le sourcing gratuit
 // (fallback sans clé Google Places) — débouchage, serrurier, vitrier,
 // dégâts des eaux, humidité, nuisibles y sont mappés depuis ce même commit.
+//
+// "couvreur" ajouté le 2026-09-15 comme proxy de sourcing pour le site lead
+// "gouttières" (nettoyage-gouttieres-bruxelles.be) — aucun tag OSM dédié aux
+// entreprises de nettoyage de gouttières n'existe, voir le commentaire sur
+// SECTEUR_OSM["couvreur"] dans source-overpass.ts.
 export const SECTEURS_ROTATION: string[][] = [
   ["débouchage", "serrurier", "vitrier"],
   ["électricien", "chauffagiste", "plombier"],
@@ -29,6 +34,7 @@ export const SECTEURS_ROTATION: string[][] = [
   ["débouchage", "vitrier", "chauffagiste"],
   ["serrurier", "électricien", "plombier"],
   ["débouchage", "nuisibles", "dégâts des eaux"],
+  ["vitrier", "nuisibles", "couvreur"],
 ]
 
 // Métadonnées grammaticales par secteur, utilisées dans les templates email
@@ -54,6 +60,7 @@ export const SECTEURS_META: Record<string, SecteurMeta> = {
   "dégâts des eaux": { secteurLabel: "des entreprises de dégâts des eaux", secteurLabelNl: "waterschadebedrijven", motCle: "dégâts des eaux" },
   "humidité": { secteurLabel: "des entreprises de traitement de l'humidité", secteurLabelNl: "vochtbestrijdingsbedrijven", motCle: "traitement humidité" },
   "nuisibles": { secteurLabel: "des entreprises de dératisation", secteurLabelNl: "ongediertebestrijders", motCle: "dératisation" },
+  "couvreur": { secteurLabel: "des couvreurs", secteurLabelNl: "dakdekkers", motCle: "nettoyage gouttières" },
 }
 
 // Renvoie les métadonnées d'un secteur, ou un repli grammaticalement sûr
@@ -99,16 +106,20 @@ export const RELANCES_SEULEMENT_APRES = new Date("2026-09-02")
 //
 // Rebranché le 2026-09-15 sur des clics Search Console réels (cockpit SEO,
 // fenêtre 28 j) plutôt qu'une hiérarchie mesurée par email (invalidée le
-// 2026-09-02, compteurs fabriqués). Deux niveaux, pas une liste plate : les
-// sites nuisibles (Allo Guêpes +27 %, SOS Punaises) ont un trafic net
-// au-dessus du reste et méritent un bonus plus fort ; électricien/serrurier/
-// chauffagiste ont un peu de trafic réel mais nettement moins. Débouchage,
-// plombier, humidité et dégâts des eaux n'ont pour l'instant aucun site lead
-// avec des clics mesurés (soit pas de site dédié, soit 0 clic sur 28 j) :
-// ils restent neutres plutôt que de deviner une hiérarchie sans donnée.
-// À revoir à chaque nouvelle lecture du cockpit (/perf) qui changerait ce
-// classement.
-export const SECTEURS_PRIORITAIRES = new Set<string>(["nuisibles"])
+// 2026-09-02, compteurs fabriqués). Deux niveaux, pas une liste plate :
+// nuisibles (Allo Guêpes +27 %, SOS Punaises), vitrier (Allo Vitrier) et
+// couvreur (proxy du site "gouttières", nettoyage-gouttieres-bruxelles.be)
+// sont les sites que le propriétaire du produit identifie comme ceux qui
+// fonctionnent bien — priorité forte, mise à jour le 2026-09-15 pour les
+// inclure explicitement. Électricien/serrurier/chauffagiste ont un peu de
+// trafic réel mais nettement moins. Débouchage, plombier, humidité et
+// dégâts des eaux restent neutres faute de site avec clics mesurés.
+// "Bornes de recharge" (borneinstall.be) n'a PAS de secteur correspondant :
+// aucun tag OSM ne source des installateurs de bornes (voir
+// SECTEURS_SANS_SITE plus bas) — impossible à prioriser tant que ce
+// sourcing n'existe pas. À revoir à chaque nouvelle lecture du cockpit
+// (/perf) qui changerait ce classement.
+export const SECTEURS_PRIORITAIRES = new Set<string>(["nuisibles", "vitrier", "couvreur"])
 export const SECTEURS_SECONDAIRES = new Set<string>(["électricien", "serrurier", "chauffagiste"])
 
 export const SECTEUR_PRIORITE_BONUS = 15
@@ -148,6 +159,19 @@ export function secteurPrioriteTier(secteur: string): number {
 // ou trafic non mesuré) — sert uniquement au badge d'avertissement du
 // sélecteur de secteur (voir WhatsappBoard.tsx), pas au sourcing lui-même.
 export const SECTEURS_SANS_SITE = new Set<string>(["débouchage", "plombier", "humidité", "dégâts des eaux"])
+
+// Sites leads dont le métier n'a AUCUN secteur sourcé du tout (aucun
+// prospect avec ce `secteur` n'existe ni ne peut exister aujourd'hui) —
+// différent de SECTEURS_SANS_SITE, qui liste des secteurs qui SONT sourcés
+// mais dont le site correspondant ne performe pas. "Bornes de recharge"
+// (borneinstall.be) en fait partie : aucun tag OSM ne distingue un
+// installateur de bornes d'un électricien généraliste, donc aucun sourcing
+// dédié n'existe. Ne peut pas apparaître dans le sélecteur de secteur (qui
+// ne liste que les secteurs déjà présents en base) — affiché à part dans la
+// barre d'outils de /whatsapp pour que ça reste visible plutôt que silencieux.
+export const SITES_SANS_SECTEUR_SOURCE: { site: string; motif: string }[] = [
+  { site: "Bornes de recharge (borneinstall.be)", motif: "aucun tag OSM ne distingue un installateur de bornes d'un électricien — pas de sourcing dédié possible aujourd'hui" },
+]
 
 // Communes ciblées, par ordre de priorité. On commence par Bruxelles (plus gros
 // marché) ; quand un secteur y est épuisé, le pipeline passe automatiquement à
