@@ -320,10 +320,21 @@ export const SEND_EMAIL_ENABLED = false
 // gagner concret ("j'ai eu des demandes que je n'ai pas pu transmettre")
 // plutôt qu'un pitch générique — ça crée une urgence réelle (du business
 // perdu, là, maintenant) sans sonner comme un démarchage.
+//
+// Pas de chiffre de volume ("3 demandes") : aucune donnée réelle de demandes
+// ratées par métier/commune n'existe dans le pipeline — l'inventer serait
+// exactement le genre de statut fabriqué que le correctif KPI du 2026-09-01
+// a retiré (voir plus haut). "Des demandes" reste générique et honnête.
+//
+// Révèle l'offre "prochaine gratuite" dès ce premier message (changement du
+// 2026-09-16 — auparavant réservée au closing, WHATSAPP_CLOSING_MESSAGE plus
+// bas) : choix assumé de sacrifier la carte de négociation du closing contre
+// un premier message plus accrocheur.
 export const WHATSAPP_MESSAGE_TEMPLATE =
   "Bonjour, j'ai eu des demandes de {metier} sur {commune} cette semaine que je n'ai pas pu transmettre.\n\n" +
   "Je gère le site, je ne fais pas le métier.\n\n" +
-  "Vous prenez encore des clients en ce moment ?"
+  "Vous prenez encore des clients en ce moment ?\n\n" +
+  "Si oui je vous envoie la prochaine gratuitement, vous voyez ce que ça vaut."
 
 export function whatsappMessage(secteur: string, commune: string): string {
   const metier = secteurMeta(secteur).motCle
@@ -352,7 +363,7 @@ export interface Objection {
 export const OBJECTIONS: Objection[] = [
   {
     question: "« C'est combien ? »",
-    reponse: "Les trois premières sont offertes. Après, on se cale sur ce que ça vous rapporte réellement, pas sur un forfait.",
+    reponse: "La prochaine est offerte. Après, on se cale sur ce que ça vous rapporte réellement, pas sur un forfait.",
   },
   {
     question: "« C'est comme Bobex, j'ai déjà donné. »",
@@ -360,7 +371,7 @@ export const OBJECTIONS: Objection[] = [
   },
   {
     question: "« Vous êtes une société ? »",
-    reponse: "Pas encore, je démarre. C'est aussi pour ça que les premières sont gratuites.",
+    reponse: "Pas encore, je démarre. C'est aussi pour ça que la prochaine demande est gratuite.",
   },
 ]
 
@@ -369,10 +380,12 @@ export const OBJECTIONS: Objection[] = [
 // marche → pourquoi c'est gratuit au début → l'action immédiate qu'on
 // attend de lui), et termine par une question fermée à choix binaire plutôt
 // qu'une question ouverte — plus facile et plus rapide à répondre sur
-// WhatsApp.
+// WhatsApp. Aligné le 2026-09-16 sur "la prochaine" (1 seule offerte) pour
+// rester cohérent avec WHATSAPP_MESSAGE_TEMPLATE, qui révèle désormais cette
+// offre dès le premier message plutôt qu'au closing.
 export const WHATSAPP_CLOSING_MESSAGE =
   "Parfait. Concrètement : quand une demande arrive, je vous envoie le contact avec le problème et l'adresse. " +
   "Vous rappelez, vous décidez si vous prenez.\n\n" +
-  "Je paie la publicité, vous ne payez rien pour ça. Les 3 premières demandes sont offertes pour que vous voyiez " +
+  "Je paie la publicité, vous ne payez rien pour ça. La prochaine demande est offerte pour que vous voyiez " +
   "ce que ça vaut. Ensuite on se met d'accord sur un prix par appel.\n\n" +
-  "Je vous envoie la prochaine dès qu'elle arrive. SMS ou téléphone ?"
+  "Je vous l'envoie dès qu'elle arrive. SMS ou téléphone ?"
