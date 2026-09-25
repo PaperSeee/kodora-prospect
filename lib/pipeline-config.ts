@@ -330,11 +330,16 @@ export const SEND_EMAIL_ENABLED = false
 // 2026-09-16 — auparavant réservée au closing, WHATSAPP_CLOSING_MESSAGE plus
 // bas) : choix assumé de sacrifier la carte de négociation du closing contre
 // un premier message plus accrocheur.
+// Version adoucie (2026-09-25, demande d'Ilias : l'ancien message était trop
+// agressif — « des demandes que je n'ai pas pu transmettre », « Vous prenez
+// encore des clients ? »). Ton poli et transparent : on se présente, on dit
+// ce qu'on fait (le site, pas le métier), on propose sans presser, une seule
+// question ouverte et facile. Toujours aucun chiffre inventé.
 export const WHATSAPP_MESSAGE_TEMPLATE =
-  "Bonjour, j'ai eu des demandes de {metier} sur {commune} cette semaine que je n'ai pas pu transmettre.\n\n" +
-  "Je gère le site, je ne fais pas le métier.\n\n" +
-  "Vous prenez encore des clients en ce moment ?\n\n" +
-  "Si oui je vous envoie la prochaine gratuitement, vous voyez ce que ça vaut."
+  "Bonjour,\n\n" +
+  "Je m'appelle Ilias. Je gère un site qui reçoit des demandes de particuliers pour du {metier} à {commune} et aux alentours — je ne fais pas le métier moi-même, je cherche un professionnel sérieux de la région à qui les confier.\n\n" +
+  "Est-ce que ça pourrait vous intéresser ? Si vous voulez, je vous en transmets une gratuitement pour que vous puissiez juger par vous-même, sans aucun engagement.\n\n" +
+  "Bonne journée !"
 
 export function whatsappMessage(secteur: string, commune: string): string {
   const metier = secteurMeta(secteur).motCle
